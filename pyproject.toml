@@ -52,9 +52,9 @@ dependencies = [
 comet = ["unbabel-comet"]
 
 [project.urls]
-Homepage = "https://github.com/pe-trik/softsegmenter"
-Repository = "https://github.com/pe-trik/softsegmenter"
-Issues = "https://github.com/pe-trik/softsegmenter/issues"
+Homepage = "https://github.com/pe-trik/OmniSTEval"
+Repository = "https://github.com/pe-trik/OmniSTEval"
+Issues = "https://github.com/pe-trik/OmniSTEval/issues"
 Paper = "https://arxiv.org/abs/2509.17349"
 
 [project.scripts]
