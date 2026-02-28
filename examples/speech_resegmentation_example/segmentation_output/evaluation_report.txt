@@ -1,0 +1,35 @@
+================================================================
+OmniSTEval v0.1.0  |  Longform evaluation (resegmentation)
+================================================================
+
+Settings
+----------------------------------------------------------------
+  Hypothesis         instances.log
+  Hypothesis format  jsonl
+  Reference          references.txt
+  Segmentation       ref_segments.yaml
+  Seg. type          speech
+  Language           de
+  BLEU tokenizer     13a
+  Char-level         no
+  Offset delays      no
+  Fix CA emissions   yes
+  Metrics            quality, latency
+  Version            0.1.0
+
+Scores
+----------------------------------------------------------------
+  BLEU           22.9418
+  chrF           52.1659
+  LongYAAL (CU)  2969.2223
+  LongAL (CU)    3000.5570
+  LongLAAL (CU)  3102.8672
+  LongAP (CU)    1.0506
+  LongDAL (CU)   4130.1372
+  LongYAAL (CA)  5905.4040
+  LongAL (CA)    6100.6042
+  LongLAAL (CA)  6159.5048
+  LongAP (CA)    1.7176
+  LongDAL (CA)   7409.7906
+
+================================================================

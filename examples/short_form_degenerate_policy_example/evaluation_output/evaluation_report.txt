@@ -1,0 +1,36 @@
+================================================================
+OmniSTEval v0.1.0  |  Shortform evaluation
+================================================================
+
+Settings
+----------------------------------------------------------------
+  Hypothesis        instances.log
+  Reference         references.txt
+  BLEU tokenizer    13a
+  Char-level        no
+  Fix CA emissions  no
+  Metrics           quality, latency
+  Version           0.1.0
+
+Scores
+----------------------------------------------------------------
+  BLEU                                   18.2271
+  chrF                                   44.5324
+  YAAL (CU)                              1135.6097
+  AL (CU)                                1803.9192
+  LAAL (CU)                              1857.7128
+  AP (CU)                                0.7948
+  DAL (CU)                               3532.4812
+  YAAL (CA)                              1272.7485
+  AL (CA)                                2021.1781
+  LAAL (CA)                              2071.7031
+  AP (CA)                                0.8903
+  DAL (CA)                               3883.0303
+  Simultaneous Words Fraction (%)        32.9060
+  Expected Simul. Words Fraction (%)     81.1100
+  Degeneracy Test Value                  48.2040
+  Likely Degenerate Simultaneous Policy  YES
+
+  *** Likely Degenerate Simultaneous Policy ***
+
+================================================================

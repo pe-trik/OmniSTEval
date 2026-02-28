@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "OmniSTEval"
+version = "0.1.0"
+description = "Evaluate simultaneous speech/text translation systems (shortform and longform) with quality (BLEU, chrF, COMET) and latency (YAAL) metrics. For longform, re-segments outputs to match reference segmentation."
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.8"
+authors = [
+    {name = "Peter Polák"},
+]
+keywords = [
+    "speech translation",
+    "simultaneous translation",
+    "evaluation",
+    "latency",
+    "segmentation",
+    "resegmentation",
+    "SoftSegmenter",
+    "shortform",
+    "longform",
+    "BLEU",
+    "chrF",
+    "COMET",
+    "YAAL",
+    "SimulEval",
+    "degenerate policy",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+    "mosestokenizer>=1.2.1",
+    "PyYAML>=6.0.3",
+    "sacrebleu>=2.5.1",
+]
+
+[project.optional-dependencies]
+comet = ["unbabel-comet"]
+
+[project.urls]
+Homepage = "https://github.com/pe-trik/softsegmenter"
+Repository = "https://github.com/pe-trik/softsegmenter"
+Issues = "https://github.com/pe-trik/softsegmenter/issues"
+Paper = "https://arxiv.org/abs/2509.17349"
+
+[project.scripts]
+omnisteval = "omnisteval.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["omnisteval*"]

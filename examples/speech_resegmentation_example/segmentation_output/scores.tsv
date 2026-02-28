@@ -1,0 +1,13 @@
+metric	value
+bleu	22.9418
+chrf	52.1659
+yaal	2969.2223
+long_al	3000.5570
+long_laal	3102.8672
+long_ap	1.0506
+long_dal	4130.1372
+ca_yaal	5905.4040
+ca_long_al	6100.6042
+ca_long_laal	6159.5048
+ca_long_ap	1.7176
+ca_long_dal	7409.7906

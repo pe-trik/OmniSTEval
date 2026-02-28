@@ -1,0 +1,25 @@
+================================================================
+OmniSTEval v0.1.0  |  Longform evaluation (resegmentation)
+================================================================
+
+Settings
+----------------------------------------------------------------
+  Hypothesis         hypotheses.txt
+  Hypothesis format  text
+  Reference          references.txt
+  Segmentation       text_segmentation.txt
+  Seg. type          text
+  Language           en
+  BLEU tokenizer     13a
+  Char-level         no
+  Offset delays      no
+  Fix CA emissions   no
+  Metrics            quality
+  Version            0.1.0
+
+Scores
+----------------------------------------------------------------
+  BLEU  22.9429
+  chrF  52.1665
+
+================================================================
