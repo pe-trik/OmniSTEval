@@ -269,6 +269,25 @@ def load_hypothesis_jsonl(
     return words, all_have_emission_ca
 
 
+def load_hypothesis_simulstream(
+    hypothesis_file: str,
+    char_level: bool,
+    segmentation_order: List[str],
+    fix_emission_ca_flag: bool,
+) -> Tuple[List[List[Word]], bool]:
+    """
+    Stub loader for the 'simulstream' log format.
+
+    This is a placeholder implementation. The real loader should parse the
+    Simulstream format and return words grouped by recording along with a
+    boolean indicating whether computation-aware emission timestamps are present.
+
+    For now, this function raises NotImplementedError to indicate that the
+    format is not yet supported.
+    """
+    raise NotImplementedError("Simulstream log format 'simulstream' is not implemented yet.")
+
+
 def load_hypothesis_text(
     hypothesis_file: str,
     char_level: bool,

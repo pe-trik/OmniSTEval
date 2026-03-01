@@ -27,14 +27,7 @@ import os
 from typing import Dict, List, Optional, Tuple
 
 from .alignment import Word, align_words
-from .data import (
-    Instance,
-    load_reference,
-    load_hypothesis_jsonl,
-    load_hypothesis_text,
-    load_text_segmentation,
-    get_segmentation_order,
-)
+from .data import Instance
 from .tokenization import tokenize_words
 from .scoring import evaluate_instances
 
@@ -120,25 +113,22 @@ def build_resegmented_instances(
 
 
 def resegment(
-    ref_sentences_file: str,
-    hypothesis_file: str,
+    ref_words: List[List[Word]],
+    hyp_words: List[List[Word]],
+    segmentation: list,
+    ref_sentences: List[str],
     output_folder: Optional[str] = None,
     *,
-    reference_segmentation: Optional[str] = None,
-    text_segmentation: Optional[str] = None,
-    hypothesis_format: str = "jsonl",
     char_level: bool = False,
     lang: Optional[str] = None,
     bleu_tokenizer: str = "13a",
-    offset_delays: bool = False,
     fix_emission_ca_flag: bool = False,
-    emission_cu_key: str = "delays",
-    emission_ca_key: str = "elapsed",
     compute_quality: bool = True,
     compute_latency: bool = True,
     compute_comet: bool = False,
     comet_model: str = "Unbabel/wmt22-comet-da",
-    source_sentences_file: Optional[str] = None,
+    source_sentences: Optional[List[str]] = None,
+    all_have_emission_ca: bool = True,
 ) -> Dict[str, float]:
     """
     Main resegmentation pipeline: load, align, resegment, and evaluate.
@@ -152,7 +142,7 @@ def resegment(
             written (scores are still returned).
         reference_segmentation: Path to YAML/JSON speech segmentation file.
         text_segmentation: Path to text segmentation file (one 0-based doc_id per line).
-        hypothesis_format: Format of hypothesis file ('jsonl' or 'text').
+        hypothesis_format: Format of hypothesis file ('jsonl', 'text', or 'simulstream').
         char_level: Use character-level units.
         lang: Language code for Moses tokenizer.
         bleu_tokenizer: Tokenizer for SacreBLEU.
@@ -169,54 +159,11 @@ def resegment(
     Returns:
         Dictionary of computed metric scores.
     """
-    use_speech = reference_segmentation is not None
-    use_text = text_segmentation is not None
-    assert use_speech ^ use_text, \
-        "Exactly one of reference_segmentation or text_segmentation must be provided."
-
-    # --- Load reference ---
-    if use_speech:
-        ref_words, segmentation, ref_sentences = load_reference(
-            reference_segmentation, ref_sentences_file, char_level, offset_delays
-        )
-        segmentation_order = get_segmentation_order(segmentation)
-
-        # Load hypothesis
-        all_have_emission_ca = False
-        if hypothesis_format == "jsonl":
-            hyp_words, all_have_emission_ca = load_hypothesis_jsonl(
-                hypothesis_file, char_level, segmentation_order,
-                fix_emission_ca_flag, emission_cu_key, emission_ca_key,
-            )
-        elif hypothesis_format == "text":
-            hyp_words = load_hypothesis_text(
-                hypothesis_file, char_level, len(segmentation_order),
-            )
-            compute_latency = False
-        else:
-            raise ValueError(f"Unknown hypothesis format: {hypothesis_format}")
-        has_emission_timestamps = hypothesis_format == "jsonl"
-
-    elif use_text:  # use_text
-        ref_words, segmentation, ref_sentences, num_documents = load_text_segmentation(
-            text_segmentation, ref_sentences_file, char_level,
-        )
-
-        hyp_words = load_hypothesis_text(hypothesis_file, char_level, num_documents)
-        all_have_emission_ca = False
-        compute_latency = False
-        has_emission_timestamps = False
-    else:
-        raise ValueError("Invalid configuration: must use either speech or text segmentation.")
-
-    # Load source sentences for COMET
-    source_sentences = None
-    if compute_comet and source_sentences_file is not None:
-        with open(source_sentences_file, "r", encoding="utf-8") as f:
-            source_sentences = [line.strip() for line in f]
-        assert len(source_sentences) == len(ref_sentences), \
-            (f"Number of source sentences ({len(source_sentences)}) does not match "
-             f"number of reference segments ({len(ref_sentences)})")
+    # This function expects already-loaded reference/hypothesis data:
+    # - ref_words: List[List[Word]] grouped by recording/document
+    # - hyp_words: List[List[Word]] grouped by recording/document
+    # - segmentation: segmentation metadata (list of dicts)
+    # - ref_sentences: list of reference strings (one per segment)
 
     # Align and build instances
     instances, instances_dict_list = build_resegmented_instances(
@@ -226,7 +173,7 @@ def resegment(
         ref_sentences,
         char_level=char_level,
         lang=lang,
-        has_emission_timestamps=has_emission_timestamps,
+        has_emission_timestamps=all_have_emission_ca,
     )
 
     # Save instances
@@ -237,12 +184,12 @@ def resegment(
         ) as f:
             for instance_dict in instances_dict_list:
                 f.write(json.dumps(instance_dict, ensure_ascii=False) + "\n")
-
     # Evaluate
     scores = evaluate_instances(
         instances,
         compute_quality=compute_quality,
         compute_latency=compute_latency,
+        is_longform=True,
         bleu_tokenizer=bleu_tokenizer,
         all_have_emission_ca=all_have_emission_ca,
         fix_emission_ca_flag=fix_emission_ca_flag,
@@ -250,15 +197,6 @@ def resegment(
         comet_model=comet_model,
         source_sentences=source_sentences,
     )
-
-    # Save scores
-    if scores and output_folder is not None:
-        with open(
-            os.path.join(output_folder, "scores.tsv"), "w", encoding="utf-8"
-        ) as f:
-            f.write("metric\tvalue\n")
-            for k, v in scores.items():
-                f.write(f"{k}\t{v:.4f}\n")
 
     return scores
 
@@ -302,21 +240,19 @@ def _metric_display_name(key: str, is_longform: bool) -> str:
 
 
 def evaluate_log(
-    hypothesis_file: str,
+    instances: List[Instance],
     output_folder: Optional[str] = None,
     *,
-    ref_sentences_file: Optional[str] = None,
     is_longform: bool = False,
     char_level: bool = False,
     bleu_tokenizer: str = "13a",
-    emission_cu_key: str = "delays",
-    emission_ca_key: str = "elapsed",
+    all_have_emission_ca: bool = False,
     fix_emission_ca_flag: bool = False,
     compute_quality: bool = True,
     compute_latency: bool = True,
     compute_comet: bool = False,
     comet_model: str = "Unbabel/wmt22-comet-da",
-    source_sentences_file: Optional[str] = None,
+    source_sentences: Optional[List[str]] = None,
 ) -> Dict[str, float]:
     """
     Evaluate a segment-level hypothesis log (shortform or pre-resegmented).
@@ -350,94 +286,11 @@ def evaluate_log(
     Returns:
         Dictionary of computed metric scores.
     """
-    # Load hypothesis lines
-    with open(hypothesis_file, "r", encoding="utf-8") as f:
-        hyp_lines = [json.loads(line.strip()) for line in f if line.strip()]
+    # `instances` is expected to be a list of `Instance` objects already
+    # prepared by the caller (CLI loader). The caller is also responsible for
+    # determining `all_have_emission_ca` and passing `source_sentences` when
+    # COMET is requested.
 
-    assert hyp_lines, f"Hypothesis file is empty: {hypothesis_file}"
-
-    # Auto-detect format. We distinguish two JSONL formats:
-    # - Resegmented JSONL (our format): contains 'emission_cu'/'emission_ca' keys.
-    # - SimulEval JSONL (shortform): contains 'prediction' and the fields
-    #   indicated by `emission_cu_key`/`emission_ca_key` (defaults: 'delays'/'elapsed').
-    first = hyp_lines[0]
-    if "emission_cu" in first or "emission_ca" in first:
-        is_resegmented = True
-    elif emission_cu_key in first or emission_ca_key in first:
-        # SimulEval-style shortform JSONL
-        is_resegmented = False
-    else:
-        # Fallback: if 'reference' present but no recognized timestamp keys,
-        # treat as SimulEval shortform only if it contains 'prediction'.
-        is_resegmented = False if "prediction" in first else True
-
-    latency_unit = "char" if char_level else "word"
-
-    if is_resegmented:
-        # Resegmented JSONL: references are inline
-        instances = [Instance.from_dict(h, latency_unit=latency_unit) for h in hyp_lines]
-        all_have_emission_ca = all(
-            h.get("emission_ca") is not None and len(h.get("emission_ca", [])) > 0
-            for h in hyp_lines
-        )
-        has_emission_timestamps = all(
-            h.get("emission_cu") is not None and len(h.get("emission_cu", [])) > 0
-            for h in hyp_lines
-        )
-        if not has_emission_timestamps:
-            compute_latency = False
-    else:
-        # SimulEval JSONL: need external references
-        assert ref_sentences_file is not None, (
-            "SimulEval-format hypothesis requires --ref_sentences_file."
-        )
-        with open(ref_sentences_file, "r", encoding="utf-8") as f:
-            ref_sentences = [line.strip() for line in f]
-        assert len(ref_sentences) == len(hyp_lines), (
-            f"Number of references ({len(ref_sentences)}) does not match "
-            f"number of hypothesis lines ({len(hyp_lines)})."
-        )
-
-        all_have_emission_ca = all(emission_ca_key in h for h in hyp_lines)
-        instances = []
-        for i, (h, ref) in enumerate(zip(hyp_lines, ref_sentences)):
-            prediction = h.get("prediction", "")
-            cu_values = h.get(emission_cu_key, [])
-            ca_values = h.get(emission_ca_key, list(cu_values))
-            source_length = h.get("source_length", None)
-
-            info: dict = {
-                "index": i,
-                "prediction": prediction,
-                "reference": ref,
-            }
-            if source_length is not None:
-                info["source_length"] = source_length
-            if cu_values:
-                info["emission_cu"] = cu_values
-            if ca_values:
-                info["emission_ca"] = ca_values
-
-            instances.append(Instance.from_dict(info, latency_unit=latency_unit))
-
-        has_emission_timestamps = all(
-            h.get(emission_cu_key) is not None and len(h.get(emission_cu_key, [])) > 0
-            for h in hyp_lines
-        )
-        if not has_emission_timestamps:
-            compute_latency = False
-
-    # Load source sentences for COMET
-    source_sentences = None
-    if compute_comet and source_sentences_file is not None:
-        with open(source_sentences_file, "r", encoding="utf-8") as f:
-            source_sentences = [line.strip() for line in f]
-        assert len(source_sentences) == len(instances), (
-            f"Number of source sentences ({len(source_sentences)}) does not match "
-            f"number of instances ({len(instances)})."
-        )
-
-    # Evaluate
     scores = evaluate_instances(
         instances,
         compute_quality=compute_quality,
