@@ -129,7 +129,7 @@ def resegment(
     comet_model: str = "Unbabel/wmt22-comet-da",
     source_sentences: Optional[List[str]] = None,
     all_have_emission_ca: bool = True,
-) -> Dict[str, float]:
+) -> Tuple[List[Instance], List[dict]]:
     """
     Main resegmentation pipeline: load, align, resegment, and evaluate.
 
@@ -176,29 +176,7 @@ def resegment(
         has_emission_timestamps=all_have_emission_ca,
     )
 
-    # Save instances
-    if output_folder is not None:
-        os.makedirs(output_folder, exist_ok=True)
-        with open(
-            os.path.join(output_folder, "instances.resegmented.jsonl"), "w", encoding="utf-8"
-        ) as f:
-            for instance_dict in instances_dict_list:
-                f.write(json.dumps(instance_dict, ensure_ascii=False) + "\n")
-    # Evaluate
-    scores = evaluate_instances(
-        instances,
-        compute_quality=compute_quality,
-        compute_latency=compute_latency,
-        is_longform=True,
-        bleu_tokenizer=bleu_tokenizer,
-        all_have_emission_ca=all_have_emission_ca,
-        fix_emission_ca_flag=fix_emission_ca_flag,
-        compute_comet=compute_comet,
-        comet_model=comet_model,
-        source_sentences=source_sentences,
-    )
-
-    return scores
+    return instances, instances_dict_list
 
 
 def _metric_display_name(key: str, is_longform: bool) -> str:

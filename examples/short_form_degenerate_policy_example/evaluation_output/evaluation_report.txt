@@ -14,22 +14,22 @@ Settings
 
 Scores
 ----------------------------------------------------------------
-  BLEU                                   18.2271
-  chrF                                   44.5324
-  YAAL (CU)                              1135.6097
-  AL (CU)                                1803.9192
-  LAAL (CU)                              1857.7128
-  AP (CU)                                0.7948
-  DAL (CU)                               3532.4812
-  YAAL (CA)                              1272.7485
-  AL (CA)                                2021.1781
-  LAAL (CA)                              2071.7031
-  AP (CA)                                0.8903
-  DAL (CA)                               3883.0303
-  Simultaneous Words Fraction (%)        32.9060
-  Expected Simul. Words Fraction (%)     81.1100
-  Degeneracy Test Value                  48.2040
-  Likely Degenerate Simultaneous Policy  YES
+  BLEU               18.2271
+  CHRF               44.5324
+  YAAL               1135.6097
+  AL                 1803.9192
+  LAAL               1857.7128
+  AP                 0.7948
+  DAL                3532.4812
+  CA_YAAL            1272.7485
+  CA_AL              2021.1781
+  CA_LAAL            2071.7031
+  CA_AP              0.8903
+  CA_DAL             3883.0303
+  SWF                32.9060
+  EFSW               81.1100
+  DSPTV              48.2040
+  DEGENERATE_POLICY  YES
 
   *** Likely Degenerate Simultaneous Policy ***
 

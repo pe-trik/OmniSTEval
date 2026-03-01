@@ -39,15 +39,15 @@ import json
 from argparse import ArgumentParser
 
 from .resegment import evaluate_log, resegment, _metric_display_name
-from .data import (
-    load_reference,
-    load_hypothesis_jsonl,
-    load_hypothesis_text,
-    load_text_segmentation,
-    get_segmentation_order,
-    Instance,
-    load_hypothesis_simulstream,
+from .io import (
+    load_shortform_instances,
+    load_pre_resegmented_instances,
+    load_resegmentation_inputs,
+    dump_instances_jsonl,
+    dump_scores_tsv,
+    format_report,
 )
+from .data import Instance
 from . import __version__
 
 logger = logging.getLogger(__name__)
@@ -59,48 +59,7 @@ logger = logging.getLogger(__name__)
 _WIDTH = 64
 
 
-def _format_report(mode_label: str, settings: dict, scores: dict) -> str:
-    """Return a human-readable evaluation report string."""
-    is_longform = "longform" in mode_label.lower()
-
-    lines: list = [
-        "=" * _WIDTH,
-        f"OmniSTEval v{__version__}  |  {mode_label}",
-        "=" * _WIDTH,
-        "",
-    ]
-
-    if settings:
-        lines.append("Settings")
-        lines.append("-" * _WIDTH)
-        kw = max(len(k) for k in settings)
-        for k, v in settings.items():
-            lines.append(f"  {k:<{kw}}  {v}")
-        lines.append("")
-
-    if scores:
-        lines.append("Scores")
-        lines.append("-" * _WIDTH)
-        rendered = {}
-        for k, v in scores.items():
-            disp = _metric_display_name(k, is_longform)
-            # Special formatting for boolean flag
-            if k == "degenerate_policy":
-                rendered[disp] = "YES" if v == 1.0 else ("NO" if v == 0.0 else "N/A")
-            else:
-                rendered[disp] = f"{v:.4f}"
-        kw = max(len(k) for k in rendered)
-        for k, v in rendered.items():
-            lines.append(f"  {k:<{kw}}  {v}")
-        lines.append("")
-
-        # Degenerate policy warning — shown only when the flag is set
-        if scores.get("degenerate_policy") == 1.0:
-            lines.append("  *** Likely Degenerate Simultaneous Policy ***")
-            lines.append("")
-
-    lines.append("=" * _WIDTH)
-    return "\n".join(lines)
+# Use shared `format_report` from omnisteval.io
 
 
 def _save_report(report: str, output_folder: str) -> None:
@@ -109,6 +68,103 @@ def _save_report(report: str, output_folder: str) -> None:
     path = os.path.join(output_folder, "evaluation_report.txt")
     with open(path, "w", encoding="utf-8") as f:
         f.write(report + "\n")
+
+
+def _evaluate_and_report(
+    instances,
+    title: str,
+    settings: dict,
+    args,
+    is_longform: bool,
+    all_have_emission_ca: bool,
+    *,
+    source_sentences=None,
+):
+    """Evaluate given `instances`, print formatted report and dump outputs.
+
+    Returns the computed `scores` dict.
+    """
+    scores = evaluate_log(
+        instances=instances,
+        output_folder=None,
+        is_longform=is_longform,
+        char_level=args.char_level,
+        bleu_tokenizer=args.bleu_tokenizer,
+        all_have_emission_ca=all_have_emission_ca,
+        fix_emission_ca_flag=args.fix_simuleval_emission_ca,
+        compute_quality=not args.no_quality,
+        compute_latency=not args.no_latency,
+        compute_comet=args.comet,
+        comet_model=args.comet_model,
+        source_sentences=source_sentences,
+    )
+
+    report = format_report(title, settings, scores)
+    print(report)
+    if args.output_folder:
+        dump_scores_tsv(scores, args.output_folder, is_longform=is_longform)
+        _save_report(report, args.output_folder)
+
+    return scores
+
+
+def _build_settings(args, base: dict) -> dict:
+    """Build common `settings` dict for report formatting.
+
+    `base` should contain keys specific to the command/mode; this helper
+    adds `Metrics`, `Version` and the optional `COMET model` entry.
+    """
+    metrics_enabled = ", ".join(filter(None, [
+        "quality" if not args.no_quality else None,
+        "latency" if not args.no_latency else None,
+        "COMET" if args.comet else None,
+    ])) or "none"
+    settings = dict(base)
+    settings["Metrics"] = metrics_enabled
+    settings["Version"] = __version__
+    if args.comet:
+        settings["COMET model"] = args.comet_model
+    return settings
+
+
+def _build_base(mode: str, args) -> dict:
+    """Return a base settings `dict` for the given *mode*.
+
+    Mode is one of: "shortform", "pre_resegmented", "resegmentation".
+    """
+    seg_type = "speech" if getattr(args, "speech_segmentation", None) else "text"
+    if mode == "shortform":
+        return {
+            "Hypothesis":        args.hypothesis_file,
+            "Reference":         args.ref_sentences_file,
+            "BLEU tokenizer":    args.bleu_tokenizer,
+            "Char-level":        "yes" if args.char_level else "no",
+            "Fix CA emissions":  "yes" if args.fix_simuleval_emission_ca else "no",
+        }
+    if mode == "pre_resegmented":
+        return {
+            "Hypothesis":        args.resegmented_hypothesis,
+            "BLEU tokenizer":    args.bleu_tokenizer,
+            "Char-level":        "yes" if args.char_level else "no",
+            "Fix CA emissions":  "yes" if args.fix_simuleval_emission_ca else "no",
+            "Segmentation":      args.speech_segmentation or args.text_segmentation,
+            "Seg. type":         seg_type,
+            "Language":          args.lang or "none",
+        }
+    if mode == "resegmentation":
+        return {
+            "Hypothesis":        args.hypothesis_file,
+            "Hypothesis format": args.hypothesis_format,
+            "Reference":         args.ref_sentences_file,
+            "Segmentation":      args.speech_segmentation or args.text_segmentation,
+            "Seg. type":         seg_type,
+            "Language":          args.lang or "none",
+            "BLEU tokenizer":    args.bleu_tokenizer,
+            "Char-level":        "yes" if args.char_level else "no",
+            "Offset delays":     "yes" if args.offset_delays else "no",
+            "Fix CA emissions":  "yes" if args.fix_simuleval_emission_ca else "no",
+        }
+    raise ValueError(f"Unknown base mode: {mode}")
 
 
 # ---------------------------------------------------------------------------
@@ -381,85 +437,31 @@ def _run_shortform(parser, args):
     if args.comet and args.no_quality:
         logger.warning("--comet is ignored when --no-quality is set.")
 
-    # Load instances from SimulEval-style JSONL and references externally,
-    # then call evaluate_log with prepared instances.
-    with open(args.hypothesis_file, "r", encoding="utf-8") as f:
-        hyp_lines = [json.loads(line.strip()) for line in f if line.strip()]
-    assert hyp_lines, f"Hypothesis file is empty: {args.hypothesis_file}"
-
-    with open(args.ref_sentences_file, "r", encoding="utf-8") as f:
-        ref_sentences = [line.strip() for line in f]
-    assert len(ref_sentences) == len(hyp_lines), (
-        f"Number of references ({len(ref_sentences)}) does not match number of hypothesis lines ({len(hyp_lines)})."
+    instances, all_have_emission_ca = load_shortform_instances(
+        args.hypothesis_file,
+        args.ref_sentences_file,
+        emission_cu_key=args.emission_cu_key,
+        emission_ca_key=args.emission_ca_key,
+        char_level=args.char_level,
     )
 
-    all_have_emission_ca = all(args.emission_ca_key in h for h in hyp_lines)
-    instances = []
-    for i, (h, ref) in enumerate(zip(hyp_lines, ref_sentences)):
-        prediction = h.get("prediction", "")
-        cu_values = h.get(args.emission_cu_key, [])
-        ca_values = h.get(args.emission_ca_key, list(cu_values))
-        source_length = h.get("source_length", None)
-
-        info: dict = {
-            "index": i,
-            "prediction": prediction,
-            "reference": ref,
-        }
-        if source_length is not None:
-            info["source_length"] = source_length
-        if cu_values:
-            info["emission_cu"] = cu_values
-        if ca_values:
-            info["emission_ca"] = ca_values
-
-        instances.append(Instance.from_dict(info, latency_unit=("char" if args.char_level else "word")))
-
-    # Load source sentences for COMET if requested
     source_sentences = None
     if args.comet and args.source_sentences_file is not None:
         with open(args.source_sentences_file, "r", encoding="utf-8") as f:
             source_sentences = [line.strip() for line in f]
-        assert len(source_sentences) == len(instances), (
-            f"Number of source sentences ({len(source_sentences)}) does not match number of instances ({len(instances)})."
-        )
 
-    scores = evaluate_log(
-        instances=instances,
-        output_folder=args.output_folder,
+    base = _build_base("shortform", args)
+    settings = _build_settings(args, base)
+
+    scores = _evaluate_and_report(
+        instances,
+        "Shortform evaluation",
+        settings,
+        args,
         is_longform=False,
-        char_level=args.char_level,
-        bleu_tokenizer=args.bleu_tokenizer,
         all_have_emission_ca=all_have_emission_ca,
-        fix_emission_ca_flag=args.fix_simuleval_emission_ca,
-        compute_quality=not args.no_quality,
-        compute_latency=not args.no_latency,
-        compute_comet=args.comet,
-        comet_model=args.comet_model,
         source_sentences=source_sentences,
     )
-
-    metrics_enabled = ", ".join(filter(None, [
-        "quality" if not args.no_quality else None,
-        "latency" if not args.no_latency else None,
-        "COMET" if args.comet else None,
-    ])) or "none"
-    settings = {
-        "Hypothesis":        args.hypothesis_file,
-        "Reference":         args.ref_sentences_file,
-        "BLEU tokenizer":    args.bleu_tokenizer,
-        "Char-level":        "yes" if args.char_level else "no",
-        "Fix CA emissions":  "yes" if args.fix_simuleval_emission_ca else "no",
-        "Metrics":           metrics_enabled,
-        "Version":           __version__,
-    }
-    if args.comet:
-        settings["COMET model"] = args.comet_model
-
-    report = _format_report("Shortform evaluation", settings, scores)
-    print(report)
-    if args.output_folder:
-        _save_report(report, args.output_folder)
 
 
 def _run_longform(parser, args):
@@ -488,186 +490,102 @@ def _run_longform(parser, args):
     if args.comet and args.no_quality:
         logger.warning("--comet is ignored when --no-quality is set.")
 
-    # --- Mode B: evaluate a pre-resegmented log ---
-    if has_resegmented:
-        # Load pre-resegmented JSONL as instances
-        with open(args.resegmented_hypothesis, "r", encoding="utf-8") as f:
-            hyp_lines = [json.loads(line.strip()) for line in f if line.strip()]
-        assert hyp_lines, f"Hypothesis file is empty: {args.resegmented_hypothesis}"
-        latency_unit = "char" if args.char_level else "word"
-        instances = [Instance.from_dict(h, latency_unit=latency_unit) for h in hyp_lines]
-        all_have_emission_ca = all(
-            h.get("emission_ca") is not None and len(h.get("emission_ca", [])) > 0
-            for h in hyp_lines
-        )
+    # Load source sentences (optional)
+    source_sentences = None
+    if args.comet and args.source_sentences_file is not None:
+        with open(args.source_sentences_file, "r", encoding="utf-8") as f:
+            source_sentences = [line.strip() for line in f]
 
-        # Load source sentences for COMET if requested
-        source_sentences = None
-        if args.comet and args.source_sentences_file is not None:
-            with open(args.source_sentences_file, "r", encoding="utf-8") as f:
-                source_sentences = [line.strip() for line in f]
-            assert len(source_sentences) == len(instances), (
-                f"Number of source sentences ({len(source_sentences)}) does not match number of instances ({len(instances)})."
+    # Two main flows: pre-resegmented evaluation or resegmentation + evaluation.
+    if has_resegmented:
+        instances, all_have_emission_ca = load_pre_resegmented_instances(
+            args.resegmented_hypothesis, char_level=args.char_level
+        )
+        mode = "pre_resegmented"
+    else:
+        # Validate resegmentation-specific requirements
+        if args.ref_sentences_file is None:
+            parser.error("--ref_sentences_file is required for resegmentation mode.")
+        if args.hypothesis_file is None:
+            parser.error("--hypothesis_file is required for resegmentation mode.")
+        if args.speech_segmentation is not None and args.text_segmentation is not None:
+            parser.error(
+                "--speech_segmentation and --text_segmentation are mutually exclusive."
             )
 
-        scores = evaluate_log(
-            instances=instances,
-            output_folder=args.output_folder,
-            is_longform=True,
+        if args.text_segmentation is not None:
+            if args.hypothesis_format != "text":
+                logger.warning(
+                    "--text_segmentation forces --hypothesis_format=text. Overriding."
+                )
+                args.hypothesis_format = "text"
+            if not args.no_latency:
+                logger.info(
+                    "Text segmentation does not support latency metrics. Disabling latency."
+                )
+                args.no_latency = True
+
+        if args.hypothesis_format == "text" and not args.no_latency:
+            logger.warning(
+                "Text-only hypothesis format does not support latency metrics. Disabling latency."
+            )
+            args.no_latency = True
+
+        # Load inputs for resegmentation and run it
+        ref_words, hyp_words, segmentation, ref_sentences, all_have_emission_ca = load_resegmentation_inputs(
+            args.speech_segmentation,
+            args.text_segmentation,
+            args.ref_sentences_file,
+            args.hypothesis_file,
+            hypothesis_format=args.hypothesis_format,
             char_level=args.char_level,
+            offset_delays=args.offset_delays,
+            fix_emission_ca_flag=args.fix_simuleval_emission_ca,
+            emission_cu_key=args.emission_cu_key,
+            emission_ca_key=args.emission_ca_key,
+        )
+
+        if args.comet and source_sentences is not None:
+            assert len(source_sentences) == len(ref_sentences), (
+                f"Number of source sentences ({len(source_sentences)}) does not match number of reference segments ({len(ref_sentences)})"
+            )
+
+        instances, instances_dict_list = resegment(
+            ref_words=ref_words,
+            hyp_words=hyp_words,
+            segmentation=segmentation,
+            ref_sentences=ref_sentences,
+            output_folder=None,
+            char_level=args.char_level,
+            lang=args.lang,
             bleu_tokenizer=args.bleu_tokenizer,
-            all_have_emission_ca=all_have_emission_ca,
             fix_emission_ca_flag=args.fix_simuleval_emission_ca,
             compute_quality=not args.no_quality,
             compute_latency=not args.no_latency,
             compute_comet=args.comet,
             comet_model=args.comet_model,
             source_sentences=source_sentences,
+            all_have_emission_ca=all_have_emission_ca,
         )
-        metrics_enabled = ", ".join(filter(None, [
-            "quality" if not args.no_quality else None,
-            "latency" if not args.no_latency else None,
-            "COMET" if args.comet else None,
-        ])) or "none"
-        settings = {
-            "Hypothesis":       args.resegmented_hypothesis,
-            "BLEU tokenizer":   args.bleu_tokenizer,
-            "Char-level":       "yes" if args.char_level else "no",
-            "Fix CA emissions": "yes" if args.fix_simuleval_emission_ca else "no",
-            "Metrics":          metrics_enabled,
-            "Version":          __version__,
-        }
-        if args.comet:
-            settings["COMET model"] = args.comet_model
-        report = _format_report("Longform evaluation (pre-resegmented)", settings, scores)
-        print(report)
+
         if args.output_folder:
-            _save_report(report, args.output_folder)
-        return
+            dump_instances_jsonl(instances_dict_list, args.output_folder)
 
-    # --- Mode A: resegment then evaluate ---
-    if args.ref_sentences_file is None:
-        parser.error("--ref_sentences_file is required for resegmentation mode.")
-    if args.hypothesis_file is None:
-        parser.error("--hypothesis_file is required for resegmentation mode.")
+        mode = "resegmentation"
 
-    if args.speech_segmentation is not None and args.text_segmentation is not None:
-        parser.error(
-            "--speech_segmentation and --text_segmentation are mutually exclusive."
-        )
-
-    # Text segmentation forces text hypothesis format and disables latency
-    if args.text_segmentation is not None:
-        if args.hypothesis_format != "text":
-            logger.warning(
-                "--text_segmentation forces --hypothesis_format=text. Overriding."
-            )
-            args.hypothesis_format = "text"
-        if not args.no_latency:
-            logger.info(
-                "Text segmentation does not support latency metrics. "
-                "Disabling latency."
-            )
-            args.no_latency = True
-
-    if args.hypothesis_format == "text" and not args.no_latency:
-        logger.warning(
-            "Text-only hypothesis format does not support latency metrics. "
-            "Disabling latency."
-        )
-        args.no_latency = True
-
-    # Load references and hypotheses, then call resegment() with loaded data.
-    if args.speech_segmentation is not None:
-        ref_words, segmentation, ref_sentences = load_reference(
-            args.speech_segmentation, args.ref_sentences_file, args.char_level, args.offset_delays
-        )
-        segmentation_order = get_segmentation_order(segmentation)
-
-        if args.hypothesis_format == "jsonl":
-            hyp_words, all_have_emission_ca = load_hypothesis_jsonl(
-                args.hypothesis_file,
-                args.char_level,
-                segmentation_order,
-                args.fix_simuleval_emission_ca,
-                args.emission_cu_key,
-                args.emission_ca_key,
-            )
-        elif args.hypothesis_format == "text":
-            hyp_words = load_hypothesis_text(
-                args.hypothesis_file, args.char_level, len(segmentation_order)
-            )
-        elif args.hypothesis_format == "simulstream":
-            hyp_words, all_have_emission_ca = load_hypothesis_simulstream(
-                args.hypothesis_file, args.char_level, segmentation_order, args.fix_simuleval_emission_ca
-            )
-        else:
-            raise ValueError(f"Unknown hypothesis format: {args.hypothesis_format}")
-
-    else:
-        # text segmentation
-        ref_words, segmentation, ref_sentences, num_documents = load_text_segmentation(
-            args.text_segmentation, args.ref_sentences_file, args.char_level
-        )
-        hyp_words = load_hypothesis_text(args.hypothesis_file, args.char_level, num_documents)
-
-    # Load source sentences for COMET if requested
-    source_sentences = None
-    if args.comet and args.source_sentences_file is not None:
-        with open(args.source_sentences_file, "r", encoding="utf-8") as f:
-            source_sentences = [line.strip() for line in f]
-        assert len(source_sentences) == len(ref_sentences), (
-            f"Number of source sentences ({len(source_sentences)}) does not match number of reference segments ({len(ref_sentences)})"
-        )
-
-    # Ensure `all_have_emission_ca` is defined for the call
-    if args.speech_segmentation is None:
-        all_have_emission_ca = False
-
-    scores = resegment(
-        ref_words=ref_words,
-        hyp_words=hyp_words,
-        segmentation=segmentation,
-        ref_sentences=ref_sentences,
-        output_folder=args.output_folder,
-        char_level=args.char_level,
-        lang=args.lang,
-        bleu_tokenizer=args.bleu_tokenizer,
-        fix_emission_ca_flag=args.fix_simuleval_emission_ca,
-        compute_quality=not args.no_quality,
-        compute_latency=not args.no_latency,
-        compute_comet=args.comet,
-        comet_model=args.comet_model,
-        source_sentences=source_sentences,
+    # Common evaluation and reporting
+    base = _build_base(mode, args)
+    settings = _build_settings(args, base)
+    title = "Longform evaluation (pre-resegmented)" if mode == "pre_resegmented" else "Longform evaluation (with resegmentation)"
+    _evaluate_and_report(
+        instances,
+        title,
+        settings,
+        args,
+        is_longform=True,
         all_have_emission_ca=all_have_emission_ca,
+        source_sentences=source_sentences,
     )
-
-    seg_type = "speech" if args.speech_segmentation else "text"
-    metrics_enabled = ", ".join(filter(None, [
-        "quality" if not args.no_quality else None,
-        "latency" if not args.no_latency else None,
-        "COMET" if args.comet else None,
-    ])) or "none"
-    settings = {
-        "Hypothesis":        args.hypothesis_file,
-        "Hypothesis format": args.hypothesis_format,
-        "Reference":         args.ref_sentences_file,
-        "Segmentation":      args.speech_segmentation or args.text_segmentation,
-        "Seg. type":         seg_type,
-        "Language":          args.lang or "none",
-        "BLEU tokenizer":    args.bleu_tokenizer,
-        "Char-level":        "yes" if args.char_level else "no",
-        "Offset delays":     "yes" if args.offset_delays else "no",
-        "Fix CA emissions":  "yes" if args.fix_simuleval_emission_ca else "no",
-        "Metrics":           metrics_enabled,
-    }
-    settings["Version"] = __version__
-    if args.comet:
-        settings["COMET model"] = args.comet_model
-    report = _format_report("Longform evaluation (resegmentation)", settings, scores)
-    print(report)
-    if args.output_folder:
-        _save_report(report, args.output_folder)
 
 
 # ---------------------------------------------------------------------------
