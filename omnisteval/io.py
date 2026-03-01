@@ -90,6 +90,7 @@ def load_resegmentation_inputs(
     fix_emission_ca_flag: bool = False,
     emission_cu_key: str = "delays",
     emission_ca_key: str = "elapsed",
+    simulstream_config_file: Optional[str] = None,
 ) -> Tuple[List[List], List[List], list, List[str], bool]:
     """Load inputs required for resegmentation.
 
@@ -114,8 +115,13 @@ def load_resegmentation_inputs(
             hyp_words = load_hypothesis_text(hypothesis_file, char_level, len(segmentation_order))
             all_have_emission_ca = False
         elif hypothesis_format == "simulstream":
+            if simulstream_config_file is None:
+                raise ValueError("simulstream_config_file must be provided when hypothesis_format is 'simulstream'.")
             hyp_words, all_have_emission_ca = load_hypothesis_simulstream(
-                hypothesis_file, char_level, segmentation_order, fix_emission_ca_flag
+                hypothesis_file=hypothesis_file,
+                char_level=char_level,
+                segmentation_order=segmentation_order,
+                eval_config_file=simulstream_config_file,
             )
         else:
             raise ValueError(f"Unknown hypothesis format: {hypothesis_format}")

@@ -1,0 +1,35 @@
+================================================================
+OmniSTEval v0.1.1  |  Longform evaluation (with resegmentation)
+================================================================
+
+Settings
+----------------------------------------------------------------
+  Hypothesis         simulstream_log.jsonl
+  Hypothesis format  simulstream
+  Reference          references.txt
+  Segmentation       ref_segments.yaml
+  Seg. type          speech
+  Language           de
+  BLEU tokenizer     13a
+  Char-level         no
+  Offset delays      no
+  Fix CA emissions   no
+  Metrics            quality, latency
+  Version            0.1.1
+
+Scores
+----------------------------------------------------------------
+  BLEU          26.9845
+  CHRF          55.2428
+  YAAL          2194.0496
+  LONG_AL       2500.9289
+  LONG_LAAL     2566.8508
+  LONG_AP       3.8295
+  LONG_DAL      3194.7830
+  CA_YAAL       2466.8468
+  CA_LONG_AL    2800.4354
+  CA_LONG_LAAL  2860.0414
+  CA_LONG_AP    4.0568
+  CA_LONG_DAL   3496.1945
+
+================================================================

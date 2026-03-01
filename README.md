@@ -5,8 +5,6 @@ A tool for evaluating simultaneous speech/text translation systems — both **sh
 For longform systems, OmniSTEval re-segments the translation outputs to match reference segmentation, enabling segment-level quality (BLEU, chrF, COMET) and latency (YAAL, LongYAAL, etc.) evaluation.
 
 Implements YAAL, LongYAAL and the SoftSegmenter alignment algorithm from [*Better Late Than Never: Evaluation of Latency Metrics for Simultaneous Speech-to-Text Translation*](https://arxiv.org/abs/2509.17349).
-
-
 ## How It Works
 
 ### Shortform evaluation
@@ -17,7 +15,9 @@ In addition to the standard quality metrics (BLEU, chrF, COMET) and latency metr
 
 ### Longform evaluation (with resegmentation)
 
-Simultaneous speech translation systems (e.g., those evaluated via [SimulEval](https://github.com/facebookresearch/SimulEval)) produce a single long-form output per audio recording. However, most evaluation metrics (like BLEU and YAAL) are designed for segmented inputs. OmniSTEval takes the reference speech segmentation and aligns the hypothesis words (including their emission timestamps) to it, effectively re-segmenting the hypothesis according to the reference segments.
+Simultaneous speech translation systems (e.g., those evaluated via [SimulEval](https://github.com/facebookresearch/SimulEval) or
+[StreamEval](https://github.com/hlt-mt/simulstream/))
+produce a single long-form output per audio recording. However, most evaluation metrics (like BLEU and YAAL) are designed for segmented inputs. OmniSTEval takes the reference speech segmentation and aligns the hypothesis words (including their emission timestamps) to it, effectively re-segmenting the hypothesis according to the reference segments.
 
 The pipeline consists of the following steps:
 
@@ -107,6 +107,12 @@ For COMET scoring support:
 pip install OmniSTEval[comet]
 ```
 
+For SimulStream log support:
+
+```bash
+pip install OmniSTEval[simulstream]
+```
+
 ### Requirements
 
 - Python 3.8+
@@ -114,6 +120,7 @@ pip install OmniSTEval[comet]
 - `PyYAML>=6.0.3`
 - `sacrebleu>=2.5.1`
 - (Optional) `unbabel-comet` — for COMET scoring
+- (Optional) `simulstream` — for reading SimulStream logs
 
 
 ## Usage
@@ -157,6 +164,23 @@ omnisteval longform \
   --hypothesis_file hypotheses.txt \
   --hypothesis_format text \
   --lang en \
+  --output_folder segmentation_output
+```
+
+### Longform evaluation with SimulStream logs
+
+If you have a SimulStream logfile (streaming outputs), use `--hypothesis_format simulstream` and
+provide the SimulStream evaluation config file with `--simulstream_config_file`.
+
+```bash
+omnisteval longform \
+  --speech_segmentation ref_segments.yaml \
+  --ref_sentences_file references.txt \
+  --hypothesis_file simulstream_log.jsonl \
+  --simulstream_config_file cfg.yaml \
+  --hypothesis_format simulstream \
+  --lang de \
+  --bleu_tokenizer 13a \
   --output_folder segmentation_output
 ```
 
@@ -233,7 +257,8 @@ omnisteval longform \
 | `--resegmented_hypothesis` | or this | — | Path to a pre-resegmented JSONL file. Mutually exclusive with segmentation inputs. |
 | `--ref_sentences_file` | For reseg. | — | Path to reference sentences file. Required for resegmentation mode. |
 | `--hypothesis_file` | For reseg. | — | Path to the hypothesis file. Required for resegmentation mode. |
-| `--hypothesis_format` | No | `jsonl` | Format of the hypothesis file: `jsonl` (SimulEval output) or `text`. |
+| `--hypothesis_format` | No | `jsonl` | Format of the hypothesis file: `jsonl` (SimulEval/JSONL output), `text`, or `simulstream` (SimulStream logfile; requires the `simulstream` package). |
+| `--simulstream_config_file` | No | — | Path to a SimulStream evaluation config YAML file. Required when `--hypothesis_format=simulstream`. |
 | `--lang` | No | `None` | Language code for Moses tokenizer (e.g., `en`, `de`). |
 | `--offset_delays` | No | `False` | Offset delays relative to the first segment of each recording. |
 
@@ -300,6 +325,19 @@ The key names for `delays` and `elapsed` can be customized with `--emission_cu_k
 Hello this is Elena and I will present our work.
 We will discuss what lexical borrowing is.
 ```
+
+**SimulStream format** (`--hypothesis_format simulstream`) and pass the SimulStream evaluation config with `--simulstream_config_file`. OmniSTEval uses the SimulStream `LogReader` to extract the final text and per-unit latencies.
+
+- What is read from the SimulStream log:
+  - `final_text` — the final hypothesis string for the recording (normalized and tokenized according to `--char_level`).
+  - `ideal_delays` — per-unit computation-unaware delays (units in seconds inside SimulStream). These are converted to milliseconds by OmniSTEval (`cu * 1000`) and used as `emission_cu`.
+  - `computational_aware_delays` — optional per-unit computation-aware delays (seconds); when present they are converted to ms and used as `emission_ca`. If absent, only CU delays are available.
+
+- Notes:
+  - Install the `simulstream` package to enable this mode: `pip install simulstream`.
+  - The `LogReader` is called with `latency_unit='char'` when `--char_level` is set, otherwise `latency_unit='word'`. Make sure tokenization in your config matches the evaluation settings so the number of units equals the number of delays.
+  - Provide the SimulStream evaluation config file via `--simulstream_config_file` so the reader can parse latencies correctly.
+
 
 ### Source Sentences (for COMET)
 
@@ -425,6 +463,7 @@ See the [examples/](examples/) directory for sample input files and expected out
 - **Shortform evaluation (with degeneracy diagnostics)**: `examples/short_form_degenerate_policy/`
 - **Speech resegmentation**: `examples/speech_resegmentation_example/`
 - **Text resegmentation**: `examples/text_resegmentation_example/`
+- **SimulStream resegmentation example**: `examples/simulstream_example/`
 
 Run an example with:
 

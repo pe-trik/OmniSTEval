@@ -271,21 +271,74 @@ def load_hypothesis_jsonl(
 
 def load_hypothesis_simulstream(
     hypothesis_file: str,
+    eval_config_file: str,
     char_level: bool,
     segmentation_order: List[str],
-    fix_emission_ca_flag: bool,
 ) -> Tuple[List[List[Word]], bool]:
-    """
-    Stub loader for the 'simulstream' log format.
+    try:
+        logger.info("Loading SimulStream log with config: %s", eval_config_file)
+        from simulstream.metrics.readers import LogReader
+        from simulstream.config import yaml_config
+    except ImportError:
+        raise ImportError("Simulstream requires the 'simulstream' package. Install with: pip install simulstream")
 
-    This is a placeholder implementation. The real loader should parse the
-    Simulstream format and return words grouped by recording along with a
-    boolean indicating whether computation-aware emission timestamps are present.
+    words: List[List[Word]] = []
+    all_have_emission_ca = True
 
-    For now, this function raises NotImplementedError to indicate that the
-    format is not yet supported.
-    """
-    raise NotImplementedError("Simulstream log format 'simulstream' is not implemented yet.")
+    eval_config = yaml_config(eval_config_file)
+
+    reader = LogReader(
+        filepath=hypothesis_file,
+        config=eval_config,
+        latency_unit="char" if char_level else "word",
+    )
+
+    output_with_latency = reader.final_outputs_and_latencies()
+    for recording_name ,hypothesis in output_with_latency.items():
+        prediction = unicode_normalize(hypothesis.final_text)
+        units = list(prediction) if char_level else prediction.split()
+
+        cu_values = hypothesis.ideal_delays
+        ca_values = hypothesis.computational_aware_delays
+
+        if len(units) != len(cu_values):
+            raise ValueError(
+                f"Number of units ({len(units)}) does not match number of delays ({len(cu_values)}) for output {recording_name}"
+            )
+        if len(units) != len(ca_values):
+            raise ValueError(
+                f"Number of units ({len(units)}) does not match number of computational-aware delays ({len(ca_values)}) for output {recording_name}"
+            )
+
+        instance_words = [
+            Word(unit, emission_cu=cu * 1000, emission_ca=ca * 1000)
+            for unit, cu, ca in zip(units, cu_values, ca_values)
+        ]
+        words.append(instance_words)
+    
+    segmentation_order = [os.path.splitext(os.path.basename(wav))[0] for wav in segmentation_order]
+
+    # Map recording names from the log output to their indices in `words`
+    name_to_index = {
+        recording_name: idx
+        for idx, (recording_name, _) in enumerate(output_with_latency.items())
+    }
+
+    # Validate that all expected recordings are present in the log output
+    missing_recordings = [wav for wav in segmentation_order if wav not in name_to_index]
+    if missing_recordings:
+        logger.error(
+            "The following recordings from segmentation_order are missing in the SimulStream log output: %s",
+            ", ".join(missing_recordings),
+        )
+        raise KeyError(
+            f"Missing recordings in SimulStream log output: {', '.join(missing_recordings)}"
+        )
+
+    # Reorder `words` to match `segmentation_order`
+    reordered_words = [words[name_to_index[wav]] for wav in segmentation_order]
+
+    return reordered_words, all_have_emission_ca
 
 
 def load_hypothesis_text(

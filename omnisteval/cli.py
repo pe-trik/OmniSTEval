@@ -380,6 +380,15 @@ def _build_longform_parser(subparsers):
             "'simulstream': Simulstream log format (streaming log). Default: jsonl."
         ),
     )
+    seg.add_argument(
+        "--simulstream_config_file",
+        type=str,
+        default=None,
+        help=(
+            "Path to Simulstream evaluation config YAML file. Required when "
+            "--hypothesis_format=simulstream."
+        ),
+    )
 
     # --- Mode B: pre-resegmented evaluation ---
     reseg = parser.add_argument_group(
@@ -530,6 +539,9 @@ def _run_longform(parser, args):
                 "Text-only hypothesis format does not support latency metrics. Disabling latency."
             )
             args.no_latency = True
+        
+        if args.hypothesis_format == "simulstream" and not args.simulstream_config_file:
+            parser.error("--simulstream_config_file is required when --hypothesis_format=simulstream.")
 
         # Load inputs for resegmentation and run it
         ref_words, hyp_words, segmentation, ref_sentences, all_have_emission_ca = load_resegmentation_inputs(
@@ -543,6 +555,7 @@ def _run_longform(parser, args):
             fix_emission_ca_flag=args.fix_simuleval_emission_ca,
             emission_cu_key=args.emission_cu_key,
             emission_ca_key=args.emission_ca_key,
+            simulstream_config_file=args.simulstream_config_file,
         )
 
         if args.comet and source_sentences is not None:
