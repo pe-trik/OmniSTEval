@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Quality and latency scoring for SoftSegmenter.
+Quality and latency scoring for OmniSTEval.
 
 Provides scorers for BLEU, chrF, COMET (quality) and YAAL (latency).
  

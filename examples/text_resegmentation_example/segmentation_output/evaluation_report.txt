@@ -1,5 +1,5 @@
 ================================================================
-OmniSTEval v0.1.0  |  Longform evaluation (resegmentation)
+OmniSTEval v0.1.1  |  Longform evaluation (with resegmentation)
 ================================================================
 
 Settings
@@ -15,11 +15,11 @@ Settings
   Offset delays      no
   Fix CA emissions   no
   Metrics            quality
-  Version            0.1.0
+  Version            0.1.1
 
 Scores
 ----------------------------------------------------------------
   BLEU  22.9429
-  chrF  52.1665
+  CHRF  52.1665
 
 ================================================================

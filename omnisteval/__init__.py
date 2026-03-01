@@ -25,7 +25,7 @@ Evaluation of Latency Metrics for Simultaneous Speech-to-Text Translation"
 (https://arxiv.org/abs/2509.17349).
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from .alignment import Word, align_words, align_sequences, similarity
 from .data import Instance

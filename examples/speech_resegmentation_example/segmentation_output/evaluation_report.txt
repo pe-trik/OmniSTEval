@@ -1,5 +1,5 @@
 ================================================================
-OmniSTEval v0.1.0  |  Longform evaluation (with resegmentation)
+OmniSTEval v0.1.1  |  Longform evaluation (with resegmentation)
 ================================================================
 
 Settings
@@ -15,7 +15,7 @@ Settings
   Offset delays      no
   Fix CA emissions   yes
   Metrics            quality, latency
-  Version            0.1.0
+  Version            0.1.1
 
 Scores
 ----------------------------------------------------------------

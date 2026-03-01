@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "OmniSTEval"
-version = "0.1.0"
+version = "0.1.1"
 description = "Evaluate simultaneous speech/text translation systems (shortform and longform) with quality (BLEU, chrF, COMET) and latency (YAAL) metrics. For longform, re-segments outputs to match reference segmentation."
 readme = "README.md"
 license = {text = "Apache-2.0"}

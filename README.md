@@ -49,7 +49,7 @@ When running `omnisteval shortform`, three additional percent-scale metrics and 
 
 ```
 ================================================================
-OmniSTEval v0.1.0  |  Shortform evaluation
+OmniSTEval v0.1.1  |  Shortform evaluation
 ================================================================
 
 Settings
@@ -60,7 +60,7 @@ Settings
   Char-level        no
   Fix CA emissions  no
   Metrics           quality, latency
-  Version           0.1.0
+  Version           0.1.1
 
 Scores
 ----------------------------------------------------------------
@@ -96,8 +96,8 @@ pip install OmniSTEval
 Or install from source:
 
 ```bash
-git clone https://github.com/pe-trik/softsegmenter.git
-cd softsegmenter
+git clone https://github.com/pe-trik/omnisteval.git
+cd omnisteval
 pip install -e .
 ```
 
@@ -317,7 +317,7 @@ Each run prints a human-readable evaluation report to stdout:
 
 ```
 ================================================================
-OmniSTEval v0.1.0  |  Longform evaluation (resegmentation)
+OmniSTEval v0.1.1  |  Longform evaluation (resegmentation)
 ================================================================
 
 Settings
@@ -333,7 +333,7 @@ Settings
   Offset delays      no
   Fix CA emissions   yes
   Metrics            quality, latency
-  Version            0.1.0
+  Version            0.1.1
 
 Scores
 ----------------------------------------------------------------
