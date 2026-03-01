@@ -376,7 +376,7 @@ class ShortformDegeneracyScorer:
 
 
 def evaluate_instances(
-    resegmented_instances: List[Instance],
+    instances: List[Instance],
     *,
     compute_quality: bool = True,
     compute_latency: bool = True,
@@ -392,7 +392,7 @@ def evaluate_instances(
     Evaluate resegmented instances with the selected metrics.
 
     Args:
-        resegmented_instances: List of resegmented instances.
+        instances: List of resegmented instances.
         compute_quality: Whether to compute quality metrics (BLEU, chrF, COMET).
         compute_latency: Whether to compute latency metrics (YAAL).
         is_longform: Whether to use long-form YAAL (True for resegmented long-form
@@ -410,35 +410,35 @@ def evaluate_instances(
     scores: Dict[str, float] = {}
 
     if compute_quality:
-        scores["bleu"] = SacreBLEUScorer(bleu_tokenizer)(resegmented_instances)
-        scores["chrf"] = ChrFScorer()(resegmented_instances)
+        scores["bleu"] = SacreBLEUScorer(bleu_tokenizer)(instances)
+        scores["chrf"] = ChrFScorer()(instances)
         if compute_comet and source_sentences is not None:
-            scores["comet"] = COMETScorer(comet_model)(resegmented_instances, source_sentences)
+            scores["comet"] = COMETScorer(comet_model)(instances, source_sentences)
 
     if compute_latency:
-        ca_unaware = YAALScorer(is_longform=is_longform)(resegmented_instances)
+        ca_unaware = YAALScorer(is_longform=is_longform)(instances)
         scores["yaal"] = ca_unaware
 
         # Add AL/LAAL/AP/DAL (non-CA)
         prefix = "long_" if is_longform else ""
         try:
-            scores[f"{prefix}al"] = ALScorer(computation_aware=False)(resegmented_instances)
-            scores[f"{prefix}laal"] = LAALScorer(computation_aware=False)(resegmented_instances)
-            scores[f"{prefix}ap"] = APScorer(computation_aware=False)(resegmented_instances)
-            scores[f"{prefix}dal"] = DALScorer(computation_aware=False)(resegmented_instances)
+            scores[f"{prefix}al"] = ALScorer(computation_aware=False)(instances)
+            scores[f"{prefix}laal"] = LAALScorer(computation_aware=False)(instances)
+            scores[f"{prefix}ap"] = APScorer(computation_aware=False)(instances)
+            scores[f"{prefix}dal"] = DALScorer(computation_aware=False)(instances)
         except Exception as e:
             logger.warning(f"Failed to compute AL/LAAL/AP/DAL: {e}")
 
         if all_have_emission_ca:
-            ca_aware = YAALScorer(computation_aware=True, is_longform=is_longform)(resegmented_instances)
+            ca_aware = YAALScorer(computation_aware=True, is_longform=is_longform)(instances)
             scores["ca_yaal"] = ca_aware
 
             # CA variants for other latency scorers
             try:
-                scores[f"ca_{prefix}al"] = ALScorer(computation_aware=True)(resegmented_instances)
-                scores[f"ca_{prefix}laal"] = LAALScorer(computation_aware=True)(resegmented_instances)
-                scores[f"ca_{prefix}ap"] = APScorer(computation_aware=True)(resegmented_instances)
-                scores[f"ca_{prefix}dal"] = DALScorer(computation_aware=True)(resegmented_instances)
+                scores[f"ca_{prefix}al"] = ALScorer(computation_aware=True)(instances)
+                scores[f"ca_{prefix}laal"] = LAALScorer(computation_aware=True)(instances)
+                scores[f"ca_{prefix}ap"] = APScorer(computation_aware=True)(instances)
+                scores[f"ca_{prefix}dal"] = DALScorer(computation_aware=True)(instances)
             except Exception as e:
                 logger.warning(f"Failed to compute CA variants for latency scorers: {e}")
 
@@ -460,7 +460,7 @@ def evaluate_instances(
 
     # Shortform-only degeneracy diagnostics
     if compute_latency and not is_longform:
-        degeneracy = ShortformDegeneracyScorer()(resegmented_instances)
+        degeneracy = ShortformDegeneracyScorer()(instances)
         scores.update(degeneracy)
 
     return scores

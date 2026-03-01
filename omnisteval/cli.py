@@ -35,10 +35,9 @@ Evaluation of Latency Metrics for Simultaneous Speech-to-Text Translation"
 
 import logging
 import os
-import json
 from argparse import ArgumentParser
 
-from .resegment import evaluate_log, resegment, _metric_display_name
+from .resegment import resegment
 from .io import (
     load_shortform_instances,
     load_pre_resegmented_instances,
@@ -47,7 +46,7 @@ from .io import (
     dump_scores_tsv,
     format_report,
 )
-from .data import Instance
+from .scoring import evaluate_instances
 from . import __version__
 
 logger = logging.getLogger(__name__)
@@ -84,11 +83,9 @@ def _evaluate_and_report(
 
     Returns the computed `scores` dict.
     """
-    scores = evaluate_log(
+    scores = evaluate_instances(
         instances=instances,
-        output_folder=None,
         is_longform=is_longform,
-        char_level=args.char_level,
         bleu_tokenizer=args.bleu_tokenizer,
         all_have_emission_ca=all_have_emission_ca,
         fix_emission_ca_flag=args.fix_simuleval_emission_ca,
@@ -461,12 +458,12 @@ def _run_shortform(parser, args):
 
     base = _build_base("shortform", args)
     settings = _build_settings(args, base)
-
-    scores = _evaluate_and_report(
-        instances,
-        "Shortform evaluation",
-        settings,
-        args,
+    title = "Shortform evaluation"
+    _evaluate_and_report(
+        instances=instances,
+        title=title,
+        settings=settings,
+        args=args,
         is_longform=False,
         all_have_emission_ca=all_have_emission_ca,
         source_sentences=source_sentences,
@@ -568,17 +565,9 @@ def _run_longform(parser, args):
             hyp_words=hyp_words,
             segmentation=segmentation,
             ref_sentences=ref_sentences,
-            output_folder=None,
             char_level=args.char_level,
             lang=args.lang,
-            bleu_tokenizer=args.bleu_tokenizer,
-            fix_emission_ca_flag=args.fix_simuleval_emission_ca,
-            compute_quality=not args.no_quality,
-            compute_latency=not args.no_latency,
-            compute_comet=args.comet,
-            comet_model=args.comet_model,
-            source_sentences=source_sentences,
-            all_have_emission_ca=all_have_emission_ca,
+            has_emission_timestamps=all_have_emission_ca,
         )
 
         if args.output_folder:

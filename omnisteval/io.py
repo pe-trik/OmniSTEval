@@ -145,12 +145,57 @@ def dump_instances_jsonl(instances_dict_list: List[dict], output_folder: str) ->
             f.write(json.dumps(d, ensure_ascii=False) + "\n")
 
 
+def _metric_display_name(key: str, is_longform: bool) -> str:
+    """Return a human-friendly display name for a metric key.
+
+    Mirrors the display logic used by the CLI report.
+    """
+    metric_display = {
+        "bleu":              "BLEU",
+        "chrf":              "chrF",
+        "comet":             "COMET",
+        "yaal":              "YAAL (CU)",
+        "ca_yaal":           "YAAL (CA)",
+        "swf":               "Simultaneous Words Fraction (%)",
+        "efsw":              "Expected Simul. Words Fraction (%)",
+        "dsptv":             "Degeneracy Test Value",
+        "degenerate_policy": "Likely Degenerate Simultaneous Policy",
+    }
+
+    if key in metric_display:
+        disp = metric_display[key]
+        if is_longform and key in ("yaal", "ca_yaal"):
+            # Longform YAAL naming
+            if key == "yaal":
+                return "LongYAAL (CU)"
+            else:
+                return "LongYAAL (CA)"
+        return disp
+
+    if key.startswith("ca_long_"):
+        return "Long" + key[len("ca_long_"):].upper() + " (CA)"
+    if key.startswith("long_"):
+        return "Long" + key[len("long_"):].upper() + " (CU)"
+    if key in ("al", "laal", "ap", "dal", "yaal"):
+        return key.upper() + " (CU)"
+    if key.startswith("ca_"):
+        return key[len("ca_"):].upper() + " (CA)"
+    return key.upper()
+
+
 def dump_scores_tsv(scores: Dict[str, float], output_folder: str, is_longform: bool = False) -> None:
     os.makedirs(output_folder, exist_ok=True)
-    with open(os.path.join(output_folder, "scores.tsv"), "w", encoding="utf-8") as f:
+    with open(
+        os.path.join(output_folder, "scores.tsv"), "w", encoding="utf-8"
+    ) as f:
         f.write("metric\tvalue\n")
         for k, v in scores.items():
-            f.write(f"{k}\t{v:.4f}\n")
+            name = _metric_display_name(k, is_longform)
+            if k == "degenerate_policy":
+                val_str = "YES" if v == 1.0 else ("NO" if v == 0.0 else "N/A")
+            else:
+                val_str = f"{v:.4f}"
+            f.write(f"{name}\t{val_str}\n")
 
 
 def format_report(mode_label: str, settings: dict, scores: dict) -> str:
@@ -175,7 +220,14 @@ def format_report(mode_label: str, settings: dict, scores: dict) -> str:
         rendered = {}
         for k, v in scores.items():
             # Use a simple uppercase name for now; the CLI will map nicer names
-            rendered[k.upper()] = f"YES" if (k == "degenerate_policy" and v == 1.0) else ("NO" if (k == "degenerate_policy" and v == 0.0) else f"{v:.4f}")
+            k_lower = k.lower()
+            name = _metric_display_name(k_lower, is_longform)
+            is_degenerate = k_lower == "degenerate_policy"
+            rendered[name] = (
+                "YES"
+                if is_degenerate and v == 1.0
+                else ("NO" if is_degenerate and v == 0.0 else f"{v:.4f}")
+            )
         kw = max(len(k) for k in rendered)
         for k, v in rendered.items():
             lines.append(f"  {k:<{kw}}  {v}")

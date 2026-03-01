@@ -1,5 +1,5 @@
 ================================================================
-OmniSTEval v0.1.2  |  Longform evaluation (with resegmentation)
+OmniSTEval v0.1.3  |  Longform evaluation (with resegmentation)
 ================================================================
 
 Settings
@@ -15,21 +15,21 @@ Settings
   Offset delays      no
   Fix CA emissions   yes
   Metrics            quality, latency
-  Version            0.1.2
+  Version            0.1.3
 
 Scores
 ----------------------------------------------------------------
-  BLEU          22.9418
-  CHRF          52.1659
-  YAAL          2969.2223
-  LONG_AL       3000.5570
-  LONG_LAAL     3102.8672
-  LONG_AP       1.0506
-  LONG_DAL      4130.1372
-  CA_YAAL       5905.4040
-  CA_LONG_AL    6100.6042
-  CA_LONG_LAAL  6159.5048
-  CA_LONG_AP    1.7176
-  CA_LONG_DAL   7409.7906
+  BLEU           22.9418
+  chrF           52.1659
+  LongYAAL (CU)  2969.2223
+  LongAL (CU)    3000.5570
+  LongLAAL (CU)  3102.8672
+  LongAP (CU)    1.0506
+  LongDAL (CU)   4130.1372
+  LongYAAL (CA)  5905.4040
+  LongAL (CA)    6100.6042
+  LongLAAL (CA)  6159.5048
+  LongAP (CA)    1.7176
+  LongDAL (CA)   7409.7906
 
 ================================================================

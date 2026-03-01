@@ -25,11 +25,11 @@ Evaluation of Latency Metrics for Simultaneous Speech-to-Text Translation"
 (https://arxiv.org/abs/2509.17349).
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 from .alignment import Word, align_words, align_sequences, similarity
 from .data import Instance
-from .resegment import resegment, build_resegmented_instances, evaluate_log
+from .resegment import resegment
 from .scoring import (
     evaluate_instances,
     SacreBLEUScorer,
@@ -53,8 +53,6 @@ __all__ = [
     "Instance",
     # Main pipeline
     "resegment",
-    "build_resegmented_instances",
-    "evaluate_log",
     # Alignment
     "align_words",
     "align_sequences",
