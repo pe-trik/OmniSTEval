@@ -210,6 +210,7 @@ def process_alignment(
     new_hyp_words = []
     last_ref = None
     nexti = 0
+    lookahead_ref = None
     for i, (ref, hyp) in enumerate(zip(ref_words, hyp_words)):
         if ref is None and i >= nexti:
             if hyp is not None:
@@ -225,14 +226,20 @@ def process_alignment(
                 )
                 if next_ref_score > prev_ref_score:
                     ref = next_ref
+                    lookahead_ref = next_ref
                 else:
                     ref = last_ref
                     nexti = i
+                    lookahead_ref = None
                 logger.debug(
                     f"{hyp.text} aligned to {ref.text if ref else 'none'} with score "
                     f"{next_ref_score:.2f} vs {prev_ref_score:.2f} to "
                     f"{last_ref.text if last_ref else 'none'}"
                 )
+        elif ref is None and hyp is not None:
+            # i < nexti: we are in a lookahead zone; assign to the same ref
+            # chosen when the zone was entered, instead of losing the word.
+            ref = lookahead_ref
         # last_ref can be set to next_ref to avoid non-monotonicity
         if ref is not None and i >= nexti:
             last_ref = ref
