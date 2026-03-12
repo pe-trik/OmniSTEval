@@ -340,9 +340,11 @@ class ShortformDegeneracyScorer:
 
         for ins in instances:
             delays = getattr(ins, "emission_cu", None)
+            if delays is None:
+                continue
             source_length = getattr(ins, "source_length", None)
-            assert delays is not None, f"Instance {ins.index} has no emission_cu timestamps."
-            assert source_length is not None, f"Instance {ins.index} has no source_length."
+            if source_length is None:
+                raise ValueError(f"Instance {ins.index} has no source_length.")
 
             # SWF components
             total_simultaneous += sum(1 for d in delays if d < source_length)
@@ -356,6 +358,7 @@ class ShortformDegeneracyScorer:
 
         if total_words == 0:
             nan = float("nan")
+            logger.warning("No valid instances for ShortformDegeneracyScorer. Returning NaN for all metrics.")
             return {"swf": nan, "efsw": nan, "dsptv": nan, "degenerate_policy": nan}
 
         swf = 100.0 * total_simultaneous / total_words
@@ -488,11 +491,11 @@ def evaluate_instances(
                 "No instances have computation-aware emission timestamps (CA)."
             )
 
-    report = report_empty(instances, is_longform)
+        # Shortform-only degeneracy diagnostics
+        if compute_latency and any_cu and not is_longform:
+            degeneracy = ShortformDegeneracyScorer()(instances)
+            scores.update(degeneracy)
 
-    # Shortform-only degeneracy diagnostics
-    if compute_latency and not is_longform:
-        degeneracy = ShortformDegeneracyScorer()(instances)
-        scores.update(degeneracy)
+    report = report_empty(instances, is_longform)
 
     return scores, report
