@@ -85,6 +85,36 @@ class Instance:
 
 # unicode normalization is provided by tokenization.unicode_normalize
 
+def _normalize_reference_names(segmentation: list) -> list:
+    """
+    Normalize recording names in segmentation to match hypothesis sources.
+
+    This function extracts the base name without extension from the 'wav' field
+    in each segment, which is expected to correspond to the source names in the
+    hypothesis data. For example, "recording1.wav" becomes "recording1".
+
+    Args:
+        segmentation: Parsed segmentation data with 'wav' fields.
+
+    Returns:
+        List of normalized recording names corresponding to each segment.
+    """
+    names = set(seg["wav"] for seg in segmentation)
+
+    # try removing extensions
+    candidate_names = [os.path.splitext(seg["wav"])[0] for seg in segmentation]
+    if len(set(candidate_names)) == len(names):
+        for seg, candidate_name in zip(segmentation, candidate_names):
+            seg["wav"] = candidate_name
+
+    # try base name
+    base_names = [os.path.basename(seg["wav"]) for seg in segmentation]
+    if len(set(base_names)) == len(names):
+        for seg, base_name in zip(segmentation, base_names):
+            seg["wav"] = base_name
+        return segmentation
+    
+    return segmentation
 
 def load_reference(
     reference_segmentation: str,
@@ -114,6 +144,8 @@ def load_reference(
             segmentation = yaml.load(f, Loader=yaml.CLoader)
     else:
         raise ValueError("Unsupported segmentation file format. Use YAML or JSON.")
+
+    segmentation = _normalize_reference_names(segmentation)
 
     for seg in segmentation:
         seg["duration"] = seg["duration"] * 1000  # Convert to milliseconds
@@ -204,6 +236,36 @@ def fix_emission_ca(words: List[Word]) -> List[Word]:
             word.emission_ca = max(new_emission_ca[i], prev_emission_ca)
     return words
 
+def _resolve_recording_names(segmentation_order: List[str], hypothesis_names: List[str]) -> Dict[str, str]:
+    """
+    Resolve recording names between segmentation and hypothesis data.
+
+    This function attempts to match recording names from the segmentation order
+    with those in the hypothesis data, allowing for common variations such as:
+    - Segmentation names may be base names without extensions or with different extensions (e.g., "recording1" vs "recording1.wav").
+    - Hypothesis names may include extensions or be full paths, while segmentation names are base names.
+
+    """
+    segmentation_names = set(segmentation_order)
+    mapping = {}
+    for hypothesis_name in hypothesis_names:
+        base_name = os.path.basename(hypothesis_name)
+        no_ext = os.path.splitext(base_name)[0]
+        base_name_no_ext = os.path.basename(os.path.splitext(hypothesis_name)[0])
+        if hypothesis_name in segmentation_names:
+            mapping[hypothesis_name] = hypothesis_name
+        elif base_name in segmentation_names:
+            mapping[hypothesis_name] = base_name
+        elif no_ext in segmentation_names:
+            mapping[hypothesis_name] = no_ext
+        elif base_name_no_ext in segmentation_names:
+            mapping[hypothesis_name] = base_name_no_ext
+        else:
+            raise ValueError(
+                f"Could not resolve recording name for hypothesis '{hypothesis_name}'. "
+                f"Segmentation names: {segmentation_names}"
+            )
+    return mapping
 
 def load_hypothesis_jsonl(
     hypothesis_file: str,
@@ -235,14 +297,27 @@ def load_hypothesis_jsonl(
         for line in f:
             h = json.loads(line.strip())
             source = h["source"]
-            h_name = os.path.basename(source[0] if isinstance(source, list) else source)
-            assert h_name in segmentation_order, f"Missing hypothesis for {h_name}"
-            assert h_name not in hypotheses, f"Duplicate hypothesis for {h_name}"
+            if isinstance(source, list):
+                h_name = source[0]
+            else:
+                h_name = source
+            if h_name in hypotheses:
+                raise ValueError(f"Duplicate hypothesis for source '{h_name}' in hypothesis file.")
+            
             source_lengths[h_name] = h.get("source_length", INF)
             hypotheses[h_name] = h
 
-    assert len(hypotheses) == len(segmentation_order), \
-        "Number of hypotheses and recordings do not match."
+    if len(hypotheses) != len(segmentation_order):
+        raise ValueError(
+            f"Number of hypotheses ({len(hypotheses)}) does not match number of segments ({len(segmentation_order)}). "
+            f"Segmentation order: {segmentation_order}, Hypothesis sources: {list(hypotheses.keys())}"
+        )
+    
+    # Resolve recording names between segmentation and hypothesis data
+    hypotheses_names = list(hypotheses.keys())
+    name_mapping = _resolve_recording_names(segmentation_order, hypotheses_names)
+    source_lengths = {name_mapping[h_name]: length for h_name, length in source_lengths.items()}
+    hypotheses = {name_mapping[h_name]: h for h_name, h in hypotheses.items()}
 
     ordered_hyps = [hypotheses[name] for name in segmentation_order]
     ordered_lengths = [source_lengths[name] for name in segmentation_order]
