@@ -49,7 +49,7 @@ When running `omnisteval shortform`, three additional percent-scale metrics and 
 
 ```
 ================================================================
-OmniSTEval v0.1.4  |  Shortform evaluation
+OmniSTEval v0.1.5  |  Shortform evaluation
 ================================================================
 
 Settings
@@ -60,7 +60,7 @@ Settings
   Char-level        no
   Fix CA emissions  no
   Metrics           quality, latency
-  Version           0.1.4
+  Version           0.1.5
 
 Scores
 ----------------------------------------------------------------
@@ -356,7 +356,7 @@ Each run prints a human-readable evaluation report to stdout:
 
 ```
 ================================================================
-OmniSTEval v0.1.4  |  Longform evaluation (with resegmentation)
+OmniSTEval v0.1.5  |  Longform evaluation (with resegmentation)
 ================================================================
 
 Settings
@@ -372,7 +372,7 @@ Settings
   Offset delays      no
   Fix CA emissions   no
   Metrics            quality, latency
-  Version            0.1.4
+  Version            0.1.5
 
 Scores
 ----------------------------------------------------------------

@@ -1,5 +1,5 @@
 ================================================================
-OmniSTEval v0.1.4  |  Shortform evaluation
+OmniSTEval v0.1.5  |  Shortform evaluation
 ================================================================
 
 Settings
@@ -10,7 +10,7 @@ Settings
   Char-level        no
   Fix CA emissions  no
   Metrics           quality, latency
-  Version           0.1.4
+  Version           0.1.5
 
 Scores
 ----------------------------------------------------------------
