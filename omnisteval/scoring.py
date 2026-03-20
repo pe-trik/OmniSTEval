@@ -261,7 +261,7 @@ class YAALScorer:
         """
         timestamp_type = "emission_ca" if self.computation_aware else "emission_cu"
         delays = getattr(ins, timestamp_type, None)
-        assert delays
+        assert delays is not None
         tgt_len = len(delays) if ins.reference is None else ins.reference_length
         src_len = getattr(ins, "source_length", None)
         return delays, src_len, tgt_len
@@ -278,7 +278,7 @@ class YAALScorer:
         is_longform = (ins.longform is not None and ins.longform) or self.is_longform
         recording_end = ins.time_to_recording_end if ins.time_to_recording_end is not None else float("inf")
 
-        if (delays[0] >= source_length and not is_longform) or (delays[0] >= recording_end):
+        if len(delays) == 0 or (delays[0] >= source_length and not is_longform) or (delays[0] >= recording_end):
             return None
 
         assert source_length > 0, "Source length must be greater than 0."
