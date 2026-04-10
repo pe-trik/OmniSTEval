@@ -406,8 +406,6 @@ def load_hypothesis_simulstream(
             for unit, cu, ca in zip(units, cu_values, ca_values)
         ]
         words.append(instance_words)
-    
-    segmentation_order = [os.path.splitext(os.path.basename(wav))[0] for wav in segmentation_order]
 
     # Map recording names from the log output to their indices in `words`
     name_to_index = {
