@@ -20,6 +20,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field, fields
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
@@ -89,10 +90,6 @@ def _normalize_reference_names(segmentation: list) -> list:
     """
     Normalize recording names in segmentation to match hypothesis sources.
 
-    This function extracts the base name without extension from the 'wav' field
-    in each segment, which is expected to correspond to the source names in the
-    hypothesis data. For example, "recording1.wav" becomes "recording1".
-
     Args:
         segmentation: Parsed segmentation data with 'wav' fields.
 
@@ -100,12 +97,6 @@ def _normalize_reference_names(segmentation: list) -> list:
         List of normalized recording names corresponding to each segment.
     """
     names = set(seg["wav"] for seg in segmentation)
-
-    # try removing extensions
-    candidate_names = [os.path.splitext(seg["wav"])[0] for seg in segmentation]
-    if len(set(candidate_names)) == len(names):
-        for seg, candidate_name in zip(segmentation, candidate_names):
-            seg["wav"] = candidate_name
 
     # try base name
     base_names = [os.path.basename(seg["wav"]) for seg in segmentation]
@@ -200,6 +191,19 @@ def get_segmentation_order(segmentation: list) -> List[str]:
     for segment in segmentation:
         if not order or order[-1] != segment["wav"]:
             order.append(segment["wav"])
+
+    order_no_ext = [Path(wav).stem for wav in order]
+    if len(set(order_no_ext)) == len(order):
+        order = order_no_ext
+
+    if len(set(order_no_ext)) == len(order):
+        return order_no_ext
+    else:
+        logger.warning(
+            "Could not resolve unique recording names from segmentation. Using original names with extensions. "
+            "This may cause issues if hypothesis sources do not match segmentation names."
+        )
+        
     return order
 
 
@@ -250,16 +254,16 @@ def _resolve_recording_names(segmentation_order: List[str], hypothesis_names: Li
     mapping = {}
     for hypothesis_name in hypothesis_names:
         base_name = os.path.basename(hypothesis_name)
-        no_ext = os.path.splitext(base_name)[0]
-        base_name_no_ext = os.path.basename(os.path.splitext(hypothesis_name)[0])
+        stem_name = Path(hypothesis_name).stem
+        stem_base_name = Path(base_name).stem
         if hypothesis_name in segmentation_names:
             mapping[hypothesis_name] = hypothesis_name
         elif base_name in segmentation_names:
             mapping[hypothesis_name] = base_name
-        elif no_ext in segmentation_names:
-            mapping[hypothesis_name] = no_ext
-        elif base_name_no_ext in segmentation_names:
-            mapping[hypothesis_name] = base_name_no_ext
+        elif stem_name in segmentation_names:
+            mapping[hypothesis_name] = stem_name
+        elif stem_base_name in segmentation_names:
+            mapping[hypothesis_name] = stem_base_name
         else:
             raise ValueError(
                 f"Could not resolve recording name for hypothesis '{hypothesis_name}'. "
@@ -374,7 +378,7 @@ def load_hypothesis_simulstream(
     except ImportError:
         raise ImportError("Simulstream requires the 'simulstream' package. Install with: pip install simulstream")
 
-    words: List[List[Word]] = []
+    words: Dict[str, List[Word]] = dict()
 
     eval_config = yaml_config(eval_config_file)
 
@@ -405,29 +409,12 @@ def load_hypothesis_simulstream(
             Word(unit, emission_cu=cu * 1000, emission_ca=ca * 1000)
             for unit, cu, ca in zip(units, cu_values, ca_values)
         ]
-        words.append(instance_words)
-    
-    segmentation_order = [os.path.splitext(os.path.basename(wav))[0] for wav in segmentation_order]
+        words[recording_name] = instance_words
 
-    # Map recording names from the log output to their indices in `words`
-    name_to_index = {
-        recording_name: idx
-        for idx, (recording_name, _) in enumerate(output_with_latency.items())
-    }
+    hypotheses_names = [recording_name for recording_name, _ in output_with_latency.items()]
+    name_mapping = _resolve_recording_names(segmentation_order, hypotheses_names)
 
-    # Validate that all expected recordings are present in the log output
-    missing_recordings = [wav for wav in segmentation_order if wav not in name_to_index]
-    if missing_recordings:
-        logger.error(
-            "The following recordings from segmentation_order are missing in the SimulStream log output: %s",
-            ", ".join(missing_recordings),
-        )
-        raise KeyError(
-            f"Missing recordings in SimulStream log output: {', '.join(missing_recordings)}"
-        )
-
-    # Reorder `words` to match `segmentation_order`
-    reordered_words = [words[name_to_index[wav]] for wav in segmentation_order]
+    reordered_words = [words[name_mapping[wav]] for wav in segmentation_order]
 
     return reordered_words
 
