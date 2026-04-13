@@ -87,11 +87,15 @@ class COMETScorer:
     def __init__(self, model_name: str = "Unbabel/wmt22-comet-da"):
         self.model_name = model_name
         self.model = None
+        self.accelerator = 'cpu'
 
     def _load_model(self):
         if self.model is not None:
             return
         try:
+            import torch
+            self.accelerator = 'cuda' if torch.cuda.is_available() else 'cpu'
+
             from comet import download_model, load_from_checkpoint # type: ignore
             model_path = download_model(self.model_name)
             self.model = load_from_checkpoint(model_path)
@@ -116,7 +120,7 @@ class COMETScorer:
             }
             for src, ins in zip(source_sentences, instances)
         ]
-        output = self.model.predict(data, batch_size=8, gpus=0)
+        output = self.model.predict(data, batch_size=8, accelerator=self.accelerator)
         return output.system_score
 
 
