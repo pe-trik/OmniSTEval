@@ -25,8 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
-from .alignment import Word
-from .tokenization import unicode_normalize
+from omnisteval.alignment import Word
 
 logger = logging.getLogger(__name__)
 
@@ -335,7 +334,7 @@ def load_hypothesis_jsonl(
     
     words: List[List[Word]] = []
     for i, (h, rec_length) in enumerate(zip(ordered_hyps, ordered_lengths)):
-        prediction = unicode_normalize(h["prediction"])
+        prediction = h["prediction"]
         units = list(prediction) if char_level else prediction.split()
 
         if emission_cu_key in h:
@@ -390,7 +389,7 @@ def load_hypothesis_simulstream(
 
     output_with_latency = reader.final_outputs_and_latencies()
     for recording_name ,hypothesis in output_with_latency.items():
-        prediction = unicode_normalize(hypothesis.final_text)
+        prediction = hypothesis.final_text
         units = list(prediction) if char_level else prediction.split()
 
         cu_values = hypothesis.ideal_delays
@@ -447,7 +446,7 @@ def load_hypothesis_text(
 
     words: List[List[Word]] = []
     for h_text in hypotheses:
-        prediction = unicode_normalize(h_text)
+        prediction = h_text
         units = list(prediction) if char_level else prediction.split()
         instance_words = [
             Word(unit)

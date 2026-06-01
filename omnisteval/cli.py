@@ -37,16 +37,16 @@ import logging
 import os
 from argparse import ArgumentParser
 
-from .resegment import resegment
-from .io import (
+from omnisteval.resegment import resegment
+from omnisteval.io import (
     load_shortform_instances,
     load_resegmentation_inputs,
     dump_instances_jsonl,
     dump_scores_tsv,
     format_report,
 )
-from .scoring import evaluate_instances
-from . import __version__
+from omnisteval.scoring import evaluate_instances
+from omnisteval import __version__
 
 logger = logging.getLogger(__name__)
 

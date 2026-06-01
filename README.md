@@ -5,6 +5,20 @@ A tool for evaluating simultaneous speech/text translation systems — both **sh
 For longform systems, OmniSTEval re-segments the translation outputs to match reference segmentation, enabling segment-level quality (BLEU, chrF, COMET) and latency (YAAL, LongYAAL, etc.) evaluation.
 
 Implements YAAL, LongYAAL and the SoftSegmenter alignment algorithm from [*Better Late Than Never: Evaluation of Latency Metrics for Simultaneous Speech-to-Text Translation*](https://arxiv.org/abs/2509.17349).
+
+
+## Changelog
+Version with an exclamation mark ⚠️ may contain changes that could affect the evaluation results.
+
+- ⚠️ **v0.1.8** (2026-06-01): Move Unicode normalization out of the hypothesis loading step to avoind token and delay length mismatches. This propagates the original unnormalized hypothesis text to the alignment output, which may change the translation quality scores. E.g., ``ﬁ`` (U+FB01) is now treated as a single token instead of being normalized to "fi" (two tokens).
+- **v0.1.7** (2026-04-13): Fix issues with matching reference and hypothesis matching based on recording names.
+- ⚠️ **v0.1.6** (2026-03-12): Fix spurious deletions in the resegmentation output. This may change the evaluation scores for longform evaluation.
+- **v0.1.5** (2026-03-12): Make CLI arguments more consistent.
+- **v0.1.4** (2026-03-06): Report empty predictions in the evaluation report.
+- **v0.1.3** (2026-03-02): Improve output formatting.
+- **v0.1.2** (2026-03-01): Add support for evaluating SimulStream logs.
+- **v0.1.1** (2026-03-01): Refactor and clean up.
+
 ## How It Works
 
 ### Shortform evaluation
@@ -49,7 +63,7 @@ When running `omnisteval shortform`, three additional percent-scale metrics and 
 
 ```
 ================================================================
-OmniSTEval v0.1.7  |  Shortform evaluation
+OmniSTEval v0.1.8  |  Shortform evaluation
 ================================================================
 
 Settings
@@ -60,7 +74,7 @@ Settings
   Char-level        no
   Fix CA emissions  no
   Metrics           quality, latency
-  Version           0.1.7
+  Version           0.1.8
 
 Scores
 ----------------------------------------------------------------
@@ -356,7 +370,7 @@ Each run prints a human-readable evaluation report to stdout:
 
 ```
 ================================================================
-OmniSTEval v0.1.7  |  Longform evaluation (with resegmentation)
+OmniSTEval v0.1.8  |  Longform evaluation (with resegmentation)
 ================================================================
 
 Settings
@@ -372,7 +386,7 @@ Settings
   Offset delays      no
   Fix CA emissions   no
   Metrics            quality, latency
-  Version            0.1.7
+  Version            0.1.8
 
 Scores
 ----------------------------------------------------------------
