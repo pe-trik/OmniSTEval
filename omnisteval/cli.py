@@ -81,7 +81,7 @@ def _evaluate_and_report(
 
     Returns the computed `scores` dict.
     """
-    scores, instance_report = evaluate_instances(
+    scores, instance_report, normalization_report = evaluate_instances(
         instances=instances,
         is_longform=is_longform,
         bleu_tokenizer=args.bleu_tokenizer,
@@ -93,7 +93,7 @@ def _evaluate_and_report(
         source_sentences=source_sentences,
     )
 
-    report = format_report(title, settings, scores, instance_report)
+    report = format_report(title, settings, scores, instance_report, normalization_report)
     print(report)
     if args.output_folder:
         dump_scores_tsv(scores, args.output_folder, is_longform=is_longform)

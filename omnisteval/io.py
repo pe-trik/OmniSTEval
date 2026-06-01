@@ -158,7 +158,11 @@ def _metric_display_name(key: str, is_longform: bool) -> str:
         "efsw":              "Expected Simul. Words Fraction (%)",
         "dsptv":             "Degeneracy Test Value",
         "degenerate_policy": "Likely Degenerate Simultaneous Policy",
+        "bleu_nfkc": "BLEU (NFKC-normalized)",
+        "chrf_nfkc": "chrF (NFKC-normalized)",
     }
+
+    key = key.lower()
 
     if key in metric_display:
         disp = metric_display[key]
@@ -196,7 +200,7 @@ def dump_scores_tsv(scores: Dict[str, float], output_folder: str, is_longform: b
             f.write(f"{name}\t{val_str}\n")
 
 
-def format_report(mode_label: str, settings: dict, scores: dict, instance_report: List[str]) -> str:
+def format_report(mode_label: str, settings: dict, scores: dict, instance_report: List[str], normalization_report: List[str]) -> str:
     """Return a human-readable evaluation report string.
 
     This mirrors the previous CLI formatting.
@@ -241,4 +245,12 @@ def format_report(mode_label: str, settings: dict, scores: dict, instance_report
     lines.extend(instance_report)
 
     lines.append("=" * 64)
+
+    # Append normalization report if present
+    if normalization_report:
+        lines.append("\nUnicode Normalization Details")
+        lines.append("-" * 64)
+        lines.extend(normalization_report)
+        lines.append("=" * 64)
+
     return "\n".join(lines)

@@ -152,12 +152,14 @@ def load_reference(
     words: List[List[Word]] = []
     doc_id = -1
     seg_id_counter: Dict[int, int] = {}
+    first_offset = None
     for i, (segment, ref_sentence) in enumerate(zip(segmentation, reference_sentences)):
         if i == 0 or segmentation[i - 1]["wav"] != segment["wav"]:
             first_offset = segment["offset"] if offset_delays else 0
             words.append([])
             doc_id += 1
         if offset_delays:
+            assert first_offset is not None, "First offset should have been set by now."
             segment["offset"] -= first_offset
 
         seg_id_counter.setdefault(doc_id, 0)

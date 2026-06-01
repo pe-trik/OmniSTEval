@@ -10,6 +10,7 @@ Implements YAAL, LongYAAL and the SoftSegmenter alignment algorithm from [*Bette
 ## Changelog
 Version with an exclamation mark ⚠️ may contain changes that could affect the evaluation results.
 
+- **v0.1.9** (2026-06-01): Add information about potential issues caused by unnormalized Unicode characters to the evaluation report.
 - ⚠️ **v0.1.8** (2026-06-01): Move Unicode normalization out of the hypothesis loading step to avoind token and delay length mismatches. This propagates the original unnormalized hypothesis text to the alignment output, which may change the translation quality scores. E.g., ``ﬁ`` (U+FB01) is now treated as a single token instead of being normalized to "fi" (two tokens).
 - **v0.1.7** (2026-04-13): Fix issues with matching reference and hypothesis matching based on recording names.
 - ⚠️ **v0.1.6** (2026-03-12): Fix spurious deletions in the resegmentation output. This may change the evaluation scores for longform evaluation.
@@ -63,7 +64,7 @@ When running `omnisteval shortform`, three additional percent-scale metrics and 
 
 ```
 ================================================================
-OmniSTEval v0.1.8  |  Shortform evaluation
+OmniSTEval v0.1.9  |  Shortform evaluation
 ================================================================
 
 Settings
@@ -74,7 +75,7 @@ Settings
   Char-level        no
   Fix CA emissions  no
   Metrics           quality, latency
-  Version           0.1.8
+  Version           0.1.9
 
 Scores
 ----------------------------------------------------------------
@@ -370,7 +371,7 @@ Each run prints a human-readable evaluation report to stdout:
 
 ```
 ================================================================
-OmniSTEval v0.1.8  |  Longform evaluation (with resegmentation)
+OmniSTEval v0.1.9  |  Longform evaluation (with resegmentation)
 ================================================================
 
 Settings
@@ -386,7 +387,7 @@ Settings
   Offset delays      no
   Fix CA emissions   no
   Metrics            quality, latency
-  Version            0.1.8
+  Version            0.1.9
 
 Scores
 ----------------------------------------------------------------

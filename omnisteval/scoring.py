@@ -28,6 +28,7 @@ import logging
 import math
 from statistics import mean
 from typing import Dict, List, Optional, Sequence, Tuple
+import unicodedata
 
 from sacrebleu.metrics.bleu import BLEU
 from sacrebleu.metrics.chrf import CHRF
@@ -412,6 +413,55 @@ def report_empty(instances: List[Instance], is_longform: bool) -> List[str]:
 
     return report
 
+def report_unicode_normalization(instances: List[Instance], evaluate_quality: bool, bleu_tokenizer: str = "13a") -> Tuple[List[str], Dict[str, float]]:
+    """
+    Check for instances where Unicode normalization may affect scoring.
+    """
+    reference_normalization_issues = []
+    prediction_normalization_issues = []
+    normalized_instances = []
+    for idx, instance in enumerate(instances):
+        normalized_prediction = unicodedata.normalize("NFKC", instance.prediction)
+        normalized_reference = unicodedata.normalize("NFKC", instance.reference)
+        if normalized_prediction != instance.prediction:
+            prediction_normalization_issues.extend([
+                f"{getattr(instance, 'index', idx):04d} Original:   {instance.prediction}",
+                f"{getattr(instance, 'index', idx):04d} Normalized: {normalized_prediction}",
+                "-" * 40
+            ])
+        if normalized_reference != instance.reference:
+            reference_normalization_issues.extend([
+                f"{getattr(instance, 'index', idx):04d} Original:   {instance.reference}",
+                f"{getattr(instance, 'index', idx):04d} Normalized: {normalized_reference}",
+                "-" * 40
+            ])
+        normalized_instances.append(
+            Instance(
+                prediction=normalized_prediction,
+                reference=normalized_reference,
+                **{k: getattr(instance, k) for k in instance.__dataclass_fields__ if k not in ['prediction', 'reference']}
+            )
+        )
+    
+
+    scores = {}
+    if evaluate_quality and (reference_normalization_issues or prediction_normalization_issues):
+        logger.warning(
+            "Unicode normalization issues detected in predictions or references. "
+            "These may affect BLEU and chrF scores."
+        )
+        scores["bleu_nfkc"] = SacreBLEUScorer(tokenizer=bleu_tokenizer)(normalized_instances)
+        scores["chrf_nfkc"] = ChrFScorer()(normalized_instances)
+
+    report = []
+    if reference_normalization_issues:
+        report.append("Unicode Normalization Issues in References:")
+        report.extend(reference_normalization_issues)
+    if prediction_normalization_issues:
+        report.append("Unicode Normalization Issues in Predictions:")
+        report.extend(prediction_normalization_issues)
+
+    return report, scores
 
 def evaluate_instances(
     instances: List[Instance],
@@ -424,7 +474,7 @@ def evaluate_instances(
     compute_comet: bool = False,
     comet_model: str = "Unbabel/wmt22-comet-da",
     source_sentences: Optional[List[str]] = None,
-) -> Tuple[Dict[str, float], List[str]]:
+) -> Tuple[Dict[str, float], List[str], List[str]]:
     """
     Evaluate resegmented instances with the selected metrics.
 
@@ -444,13 +494,17 @@ def evaluate_instances(
         Tuple of metric names to scores and error report.
     """
     scores: Dict[str, float] = {}
-    report: List[str] = []
 
     if compute_quality:
         scores["bleu"] = SacreBLEUScorer(bleu_tokenizer)(instances)
         scores["chrf"] = ChrFScorer()(instances)
         if compute_comet and source_sentences is not None:
             scores["comet"] = COMETScorer(comet_model)(instances, source_sentences)
+
+    empty_report = report_empty(instances, is_longform)
+
+    normalization_report, normalization_scores = report_unicode_normalization(instances, compute_quality, bleu_tokenizer)
+    scores.update(normalization_scores)
 
     if compute_latency:
         ca_aware_yaal = None
@@ -500,6 +554,4 @@ def evaluate_instances(
             degeneracy = ShortformDegeneracyScorer()(instances)
             scores.update(degeneracy)
 
-    report = report_empty(instances, is_longform)
-
-    return scores, report
+    return scores, empty_report, normalization_report
