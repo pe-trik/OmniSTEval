@@ -57,7 +57,6 @@ class Word:
         emission_ca: Computation-aware emission timestamp (elapsed).
         main: Whether this is a main word (not a subtoken).
         original: The original word before tokenization.
-        recording_length: Total recording length.
     """
 
     text: str
@@ -66,7 +65,6 @@ class Word:
     emission_ca: Optional[float] = None
     main: bool = True
     original: Optional[str] = None
-    recording_length: Optional[float] = None
 
 
 def similarity(ref_word: Word, hyp_word: Word, char_level: bool) -> float:

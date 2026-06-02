@@ -106,6 +106,27 @@ def _normalize_reference_names(segmentation: list) -> list:
     
     return segmentation
 
+def _add_time_to_recording_end_to_segmentation(segmentation: list) -> list:
+    """
+    Add 'time_to_recording_end' field to segmentation based on segment offsets and durations.
+
+    Args:
+        segmentation: Parsed segmentation data with 'offset' and 'duration' fields.
+
+    Returns:
+        List of segmentation data with 'time_to_recording_end' field added.
+    """
+    recording_ends = {}
+    for seg in segmentation:
+        wav = seg["wav"]
+        offset = seg["offset"]
+        duration = seg["duration"]
+        end_time = offset + duration
+        recording_ends[wav] = max(recording_ends.get(wav, 0), end_time)
+    for seg in segmentation:
+        seg["time_to_recording_end"] = recording_ends[seg["wav"]] - seg["offset"]
+    return segmentation
+
 def load_reference(
     reference_segmentation: str,
     ref_sentences_file: str,
@@ -140,6 +161,8 @@ def load_reference(
     for seg in segmentation:
         seg["duration"] = seg["duration"] * 1000  # Convert to milliseconds
         seg["offset"] = seg["offset"] * 1000
+
+    segmentation = _add_time_to_recording_end_to_segmentation(segmentation)
 
     with open(ref_sentences_file, "r", encoding="utf-8") as f:
         reference_sentences = [line.strip() for line in f]
@@ -356,7 +379,7 @@ def load_hypothesis_jsonl(
             ca_values = [None] * len(units)
 
         instance_words = [
-            Word(unit, emission_cu=emission_cu, emission_ca=emission_ca, recording_length=rec_length)
+            Word(unit, emission_cu=emission_cu, emission_ca=emission_ca)
             for unit, emission_cu, emission_ca in zip(units, cu_values, ca_values)
         ]
         if fix_emission_ca_flag:

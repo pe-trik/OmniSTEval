@@ -122,7 +122,7 @@ class COMETScorer:
             for src, ins in zip(source_sentences, instances)
         ]
         output = self.model.predict(data, batch_size=8, accelerator=self.accelerator)
-        return output.system_score
+        return output.system_score  # type: ignore
 
 
 class ALScorer:

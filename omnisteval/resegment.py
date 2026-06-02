@@ -73,16 +73,6 @@ def resegment(
     for idx, (seg, ref) in enumerate(zip(segmentation, ref_sentences)):
         new_seg = new_segmentation.get(idx, [])
 
-        # Determine recording length
-        recording_lengths = [w.recording_length for w in new_seg if w.recording_length is not None]
-        if not recording_lengths:
-            recording_length = seg["offset"] + seg["duration"]
-        else:
-            recording_length = max(recording_lengths)
-            assert all(
-                w.recording_length == recording_length for w in new_seg
-            ), f"Recording lengths do not match for segment {idx}: {recording_lengths}"
-
         # Build prediction text
         prediction_parts = [w.original for w in new_seg if w.original is not None]
         prediction = "".join(prediction_parts) if char_level else " ".join(prediction_parts)
@@ -105,7 +95,7 @@ def resegment(
             seg_dict["emission_ca"] = [w.emission_ca - seg["offset"] for w in new_seg]
             any_emission = True
         if any_emission:
-            seg_dict["time_to_recording_end"] = recording_length - seg["offset"]
+            seg_dict["time_to_recording_end"] = seg["time_to_recording_end"]
 
         instances_dict_list.append(seg_dict)
         instances.append(

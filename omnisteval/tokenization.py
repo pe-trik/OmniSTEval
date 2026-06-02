@@ -64,7 +64,6 @@ def tokenize_words(words: List[List[Word]], lang: Optional[str]) -> List[List[Wo
                         seq_id=word.seq_id,
                         main=main,
                         original=word.text if main else None,
-                        recording_length=word.recording_length,
                     )
                 )
                 main = False
